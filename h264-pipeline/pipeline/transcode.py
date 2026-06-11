@@ -1,0 +1,91 @@
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+from config import Config, Profile, calc_maxrate, calc_bufsize, build_scale
+from pipeline.probe import VideoMeta
+
+
+def run(config: Config, profile: Profile, meta: VideoMeta) -> str:
+    """Transcode one profile variant. Returns the actual output resolution string."""
+    source_kbps = meta.bitrate_bps // 1000
+    maxrate = calc_maxrate(profile.ceiling_kbps, source_kbps, config.cap_scale)
+    bufsize = calc_bufsize(maxrate, config.buf_factor)
+
+    scale_filter, actual_res = build_scale(profile, meta.width, meta.height)
+
+    print(f"[transcode] {profile.name} ({actual_res})  "
+          f"crf={config.crf}  maxrate={maxrate}k  bufsize={bufsize}k")
+
+    playlist = os.path.join(config.output_dir, f"{profile.name}.m3u8")
+    seg_pattern = os.path.join(config.output_dir, f"{profile.name}_%03d.m4s")
+
+    cmd = ["ffmpeg", "-y", "-i", config.input_video]
+
+    cmd += ["-vf", scale_filter]
+
+    cmd += ["-c:v", config.video_codec]
+    cmd += ["-crf", str(config.crf)]
+    cmd += ["-maxrate", f"{maxrate}k"]
+    cmd += ["-bufsize", f"{bufsize}k"]
+
+    cmd += ["-preset", config.preset]
+    cmd += ["-pix_fmt", config.pixel_format]
+
+    if config.video_codec_tag:
+        cmd += ["-vtag", config.video_codec_tag]
+
+    if config.codec_params:
+        if config.video_codec == "libx265":
+            cmd += ["-x265-params", config.codec_params]
+        elif config.video_codec == "libx264":
+            cmd += ["-x264-params", config.codec_params]
+
+    cmd += ["-g", str(config.hls.keyframe_interval)]
+    cmd += ["-sc_threshold", "0"]
+
+    MIN_AUDIO_KBPS = 64
+    DEFAULT_AUDIO_KBPS = 128
+
+    if meta.audio_bitrate_bps:
+        source_audio_kbps = meta.audio_bitrate_bps // 1000
+        ab_kbps = max(MIN_AUDIO_KBPS, source_audio_kbps)
+    else:
+        ab_kbps = DEFAULT_AUDIO_KBPS
+
+    cmd += ["-c:a", "aac", "-b:a", f"{ab_kbps}k"]
+
+    cmd += ["-hls_time", str(config.hls.segment_duration)]
+    cmd += ["-hls_playlist_type", config.hls.playlist_type]
+    cmd += ["-hls_segment_type", config.hls.segment_type]
+    cmd += ["-hls_fmp4_init_filename", f"{profile.name}_init.mp4"]
+    cmd += ["-hls_segment_filename", seg_pattern]
+    cmd += ["-hls_flags", "independent_segments"]
+    cmd += ["-start_number", "0"]
+    cmd.append(playlist)
+
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(f"[transcode] ERROR: {profile.name} failed:\n{proc.stderr[-500:]}")
+        sys.exit(1)
+
+    segs = list(Path(config.output_dir).glob(f"{profile.name}_*.m4s"))
+    init = Path(config.output_dir) / f"{profile.name}_init.mp4"
+    total_bytes = sum(f.stat().st_size for f in segs)
+    if init.exists():
+        total_bytes += init.stat().st_size
+    total_mb = total_bytes / (1024 * 1024)
+
+    src = meta.source_size_bytes
+    reduction_bytes = src - total_bytes
+    reduction_pct = (reduction_bytes / src * 100) if src > 0 else 0
+    sign = "-" if reduction_bytes >= 0 else "+"
+
+    print(f"[transcode] {profile.name}: {len(segs)} segments, {total_mb:.1f} MB"
+          f"  ({sign}{abs(reduction_bytes) / (1024*1024):.1f} MB,"
+          f" {sign}{abs(reduction_pct):.1f}%)")
+
+    return actual_res
