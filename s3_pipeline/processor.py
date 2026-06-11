@@ -20,6 +20,7 @@ def _load_pipeline(base: Path) -> dict[str, Any]:
         ("pipeline.probe",        base / "pipeline" / "probe.py"),
         ("pipeline.transcode",    base / "pipeline" / "transcode.py"),
         ("pipeline.manifest",     base / "pipeline" / "manifest.py"),
+        ("pipeline.process",      base / "pipeline" / "process.py"),
     ]
     for mod_name, file_path in entries:
         if not file_path.exists():
@@ -38,6 +39,7 @@ def _clear() -> None:
     keys = [k for k in sys.modules if k in (
         "config", "pipeline", "pipeline.probe",
         "pipeline.transcode", "pipeline.manifest",
+        "pipeline.process",
     )]
     for k in keys:
         del sys.modules[k]
