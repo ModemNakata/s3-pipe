@@ -51,8 +51,8 @@ def _generate_thumbnail(input_path: Path, output_dir: Path) -> Optional[Path]:
         "ffmpeg", "-y", "-i", str(input_path),
         "-ss", "00:00:05",
         "-vframes", "1",
-        "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,"
-               "pad=1280:720:(ow-iw)/2:(oh-ih)/2",
+        "-vf", "scale=1280:720:force_original_aspect_ratio=increase,"
+               "crop=1280:720",
         str(out),
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
