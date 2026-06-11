@@ -22,14 +22,10 @@ def run(config: Config) -> int:
     total_in = 0
     total_out = 0
     count = 0
-
-    allowed = set(config.input_extensions)
+    skipped = 0
 
     for src_path in sorted(Path(config.input_dir).iterdir()):
         if not src_path.is_file():
-            continue
-        ext = src_path.suffix.lower()
-        if ext not in allowed:
             continue
 
         stem = src_path.stem
@@ -53,8 +49,9 @@ def run(config: Config) -> int:
 
         proc = subprocess.run(cmd, capture_output=True, text=True)
         if proc.returncode != 0:
-            print(f"[process] ERROR: {src_path.name} -> {out_name} failed:\n{proc.stderr[-300:]}")
-            sys.exit(1)
+            print(f"[process] SKIP: {src_path.name} is not a supported image format")
+            skipped += 1
+            continue
 
         out_bytes = os.path.getsize(out_path)
         total_in += in_bytes
@@ -67,12 +64,12 @@ def run(config: Config) -> int:
               f"({reduction_pct:.1f}%)")
 
     if count == 0:
-        exts = ", ".join(sorted(config.input_extensions))
-        print(f"[process] ERROR: no {exts} files found in '{config.input_dir}'")
+        print(f"[process] ERROR: no convertible image files found in '{config.input_dir}'")
         sys.exit(1)
 
+    skip_msg = f", {skipped} skipped" if skipped else ""
     print(f"[process] converted {count} image(s): "
           f"{total_in / (1024*1024):.1f} MB -> {total_out / (1024*1024):.1f} MB "
-          f"({(1 - total_out / total_in) * 100:.1f}% reduction)")
+          f"({(1 - total_out / total_in) * 100:.1f}% reduction{skip_msg})")
 
     return count

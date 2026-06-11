@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import List
+from dataclasses import dataclass
 
 
 @dataclass
@@ -16,8 +15,9 @@ class Config:
     mc_alias_path: str = "local_s3/bucket"
 
     # ── WebP encoding ─────────────────────────────────────────────────────────
-    # Quality 0–100 (lower = smaller, more lossy). 80 is a good balance.
-    quality: int = 80
+    # Quality 0–100 (lower = smaller, more lossy). 100 gives maximum quality;
+    # WebP still applies its own internal compression even at 100.
+    quality: int = 100
 
     # If True, encode losslessly (quality is ignored for lossless).
     lossless: bool = False
@@ -25,11 +25,6 @@ class Config:
     # If set, images will be resized to fit within this max dimension (long edge)
     # while preserving aspect ratio. 0 = no resize.
     max_dimension: int = 0
-
-    # Accepted input extensions (lowercase).
-    input_extensions: List[str] = field(default_factory=lambda: [
-        ".jpg", ".jpeg", ".png", ".tiff", ".tif", ".bmp", ".gif",
-    ])
 
     # ── Behaviour flags ───────────────────────────────────────────────────────
     clean_local: bool = True
