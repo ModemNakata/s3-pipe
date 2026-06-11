@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from config import AppConfig, VideoConfig, ImageConfig, filter_profiles, build_fallback
+from config import AppConfig, filter_profiles
 from deps import check_video, check_image
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -49,7 +49,7 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
     print(f"[processor] input:  {input_path}")
     print(f"[processor] output: {output_dir}")
 
-    vcfg = VideoConfig(input_video=str(input_path), output_dir=str(output_dir))
+    vcfg = cfg.build_video_config(str(input_path), str(output_dir))
     check_video(vcfg)
 
     _clear()
@@ -63,7 +63,10 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
 
     profiles = filter_profiles(vcfg.profiles, meta.min_dim)
     if not profiles:
-        profiles = [build_fallback(meta.min_dim, vcfg.fallback_profile)]
+        print(f"[processor] WARNING: no profile fits source ({meta.min_dim}p), "
+              f"nothing to encode")
+        return output_dir
+
     print(f"[processor] active profiles: {[p.name for p in profiles]}")
 
     actual: dict[str, str] = {}
@@ -81,7 +84,7 @@ def process_images(cfg: AppConfig, download_dir: Path, content_id: str, workdir:
     print(f"[processor] input:  {download_dir}")
     print(f"[processor] output: {output_dir}")
 
-    icfg = ImageConfig(input_dir=str(download_dir), output_dir=str(output_dir))
+    icfg = cfg.build_image_config(str(download_dir), str(output_dir))
     check_image(icfg)
 
     _clear()

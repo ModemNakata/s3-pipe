@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -33,7 +34,6 @@ class HlsConfig:
 class VideoConfig:
     input_video: str = ""
     output_dir: str = ""
-
     video_codec: str = "libx264"
     video_codec_tag: Optional[str] = "avc1"
     codec_params: Optional[str] = "keyint=60:min-keyint=60:scenecut=0"
@@ -42,18 +42,13 @@ class VideoConfig:
     cap_scale: float = 0.9
     buf_factor: float = 2
     pixel_format: str = "yuv420p"
-
     hls: HlsConfig = field(default_factory=HlsConfig)
-
     profiles: List[Profile] = field(default_factory=lambda: [
         Profile("1440p", 12000000, 2560, 1440, 12000),
         Profile("1080p", 6000000, 1920, 1080, 6000),
         Profile("720p",  3000000, 1280, 720,  3000),
         Profile("480p",  1200000, 854,  480,  1200),
     ])
-    fallback_profile: Profile = field(default_factory=lambda: Profile(
-        "source", 1600000, 1920, 0, 1600,
-    ))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -73,6 +68,18 @@ class ImageConfig:
 # App / S3 settings
 # ═══════════════════════════════════════════════════════════════════════
 
+_DEFAULT_PROFILES_JSON = json.dumps([
+    {"name": "1440p", "bandwidth": 12000000, "ref_width": 2560,
+     "threshold": 1440, "ceiling_kbps": 12000},
+    {"name": "1080p", "bandwidth": 6000000, "ref_width": 1920,
+     "threshold": 1080, "ceiling_kbps": 6000},
+    {"name": "720p",  "bandwidth": 3000000, "ref_width": 1280,
+     "threshold": 720,  "ceiling_kbps": 3000},
+    {"name": "480p",  "bandwidth": 1200000, "ref_width": 854,
+     "threshold": 480,  "ceiling_kbps": 1200},
+])
+
+
 @dataclass
 class AppConfig:
     s3_endpoint: str = ""
@@ -81,10 +88,36 @@ class AppConfig:
     s3_region: str = "us-east-1"
     s3_bucket: str = "fevid"
     s3_bucket_origin: str = "fevid-orig"
+
     api_base_url: str = "http://app:8080"
+    api_verify_ssl: bool = True
     poll_interval_sec: int = 30
     work_dir: Path = Path("/tmp/pipeline-work")
     mc_alias: str = "fevid"
+
+    # Video defaults
+    video_codec: str = "libx264"
+    video_codec_tag: Optional[str] = "avc1"
+    video_codec_params: Optional[str] = "keyint=60:min-keyint=60:scenecut=0"
+    video_preset: str = "slow"
+    video_crf: int = 23
+    video_cap_scale: float = 0.9
+    video_buf_factor: float = 2
+    video_pix_fmt: str = "yuv420p"
+
+    hls_segment_duration: int = 4
+    hls_segment_type: str = "fmp4"
+    hls_playlist_type: str = "vod"
+    hls_keyframe_interval: int = 60
+
+    profiles: List[Profile] = field(default_factory=list)
+
+    # Image defaults
+    image_quality: int = 100
+    image_lossless: bool = False
+    image_max_dimension: int = 0
+
+    # ── helpers ────────────────────────────────────────────────────────
 
     @classmethod
     def from_env(cls) -> AppConfig:
@@ -102,6 +135,10 @@ class AppConfig:
                 key, _, val = line.partition("=")
                 env[key.strip()] = val.strip()
 
+        profiles = cls._load_profiles(
+            env.get("VIDEO_PROFILES", ""),
+        )
+
         return cls(
             s3_endpoint=env.get("S3_ENDPOINT", ""),
             s3_access_key=env.get("S3_ACCESS_KEY", ""),
@@ -109,9 +146,81 @@ class AppConfig:
             s3_region=env.get("S3_REGION", "us-east-1"),
             s3_bucket=env.get("S3_BUCKET", "fevid"),
             s3_bucket_origin=env.get("S3_BUCKET_ORIGIN", "fevid-orig"),
-            api_base_url=os.environ.get("PIPELINE_API_URL", "http://app:8080").rstrip("/"),
-            poll_interval_sec=int(os.environ.get("POLL_INTERVAL", "30")),
-            work_dir=Path(os.environ.get("PIPELINE_WORK_DIR", "/tmp/pipeline-work")),
+            api_base_url=os.environ.get(
+                "PIPELINE_API_URL", env.get("PIPELINE_API_URL", "http://app:8080"),
+            ).rstrip("/"),
+            api_verify_ssl=(os.environ.get("PIPELINE_API_VERIFY_SSL",
+                                           env.get("PIPELINE_API_VERIFY_SSL", "true"))
+                            .lower() not in ("false", "0", "no")),
+            poll_interval_sec=int(os.environ.get(
+                "POLL_INTERVAL", env.get("POLL_INTERVAL", "30"),
+            )),
+            work_dir=Path(os.environ.get(
+                "PIPELINE_WORK_DIR", env.get("PIPELINE_WORK_DIR", "/tmp/pipeline-work"),
+            )),
+            video_codec=env.get("VIDEO_CODEC", "libx264"),
+            video_codec_tag=env.get("VIDEO_CODEC_TAG") or None,
+            video_codec_params=env.get("VIDEO_CODEC_PARAMS") or None,
+            video_preset=env.get("VIDEO_PRESET", "slow"),
+            video_crf=int(env.get("VIDEO_CRF", "23")),
+            video_cap_scale=float(env.get("VIDEO_CAP_SCALE", "0.9")),
+            video_buf_factor=float(env.get("VIDEO_BUF_FACTOR", "2")),
+            video_pix_fmt=env.get("VIDEO_PIX_FMT", "yuv420p"),
+            hls_segment_duration=int(env.get("HLS_SEGMENT_DURATION", "4")),
+            hls_segment_type=env.get("HLS_SEGMENT_TYPE", "fmp4"),
+            hls_playlist_type=env.get("HLS_PLAYLIST_TYPE", "vod"),
+            hls_keyframe_interval=int(env.get("HLS_KEYFRAME_INTERVAL", "60")),
+            profiles=profiles,
+            image_quality=int(env.get("WEBP_QUALITY", "100")),
+            image_lossless=(env.get("WEBP_LOSSLESS", "false").lower()
+                            in ("true", "1", "yes")),
+            image_max_dimension=int(env.get("WEBP_MAX_DIMENSION", "0")),
+        )
+
+    @staticmethod
+    def _load_profiles(raw: str) -> List[Profile]:
+        if not raw:
+            return [
+                Profile("1440p", 12000000, 2560, 1440, 12000),
+                Profile("1080p", 6000000, 1920, 1080, 6000),
+                Profile("720p",  3000000, 1280, 720,  3000),
+                Profile("480p",  1200000, 854,  480,  1200),
+            ]
+        try:
+            data = json.loads(raw)
+            return [Profile(**d) for d in data]
+        except (json.JSONDecodeError, TypeError, KeyError) as e:
+            print(f"[config] WARNING: invalid VIDEO_PROFILES JSON ({e}), using defaults")
+            return []
+
+    def build_video_config(self, input_video: str, output_dir: str) -> VideoConfig:
+        return VideoConfig(
+            input_video=input_video,
+            output_dir=output_dir,
+            video_codec=self.video_codec,
+            video_codec_tag=self.video_codec_tag,
+            codec_params=self.video_codec_params,
+            preset=self.video_preset,
+            crf=self.video_crf,
+            cap_scale=self.video_cap_scale,
+            buf_factor=self.video_buf_factor,
+            pixel_format=self.video_pix_fmt,
+            hls=HlsConfig(
+                segment_duration=self.hls_segment_duration,
+                segment_type=self.hls_segment_type,
+                playlist_type=self.hls_playlist_type,
+                keyframe_interval=self.hls_keyframe_interval,
+            ),
+            profiles=list(self.profiles),
+        )
+
+    def build_image_config(self, input_dir: str, output_dir: str) -> ImageConfig:
+        return ImageConfig(
+            input_dir=input_dir,
+            output_dir=output_dir,
+            quality=self.image_quality,
+            lossless=self.image_lossless,
+            max_dimension=self.image_max_dimension,
         )
 
     def setup_mc(self) -> None:
@@ -141,17 +250,6 @@ class AppConfig:
 
 def filter_profiles(profiles: List[Profile], source_min_dim: int) -> List[Profile]:
     return [p for p in profiles if source_min_dim >= p.threshold]
-
-
-def build_fallback(source_min_dim: int, fallback: Profile) -> Profile:
-    bw = max(200000, fallback.bandwidth)
-    return Profile(
-        name=fallback.name,
-        bandwidth=bw,
-        ref_width=fallback.ref_width,
-        threshold=0,
-        ceiling_kbps=fallback.ceiling_kbps,
-    )
 
 
 def calc_maxrate(ceiling_kbps: int, source_kbps: int, cap_scale: float) -> int:

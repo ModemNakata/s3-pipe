@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import ssl
 import sys
 import urllib.error
 import urllib.request
@@ -9,11 +10,21 @@ from typing import Any, Optional
 from config import AppConfig
 
 
+def _context(cfg: AppConfig) -> ssl.SSLContext:
+    if cfg.api_verify_ssl:
+        return ssl.create_default_context()
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
 def _json_request(
     url: str,
     method: str = "GET",
     headers: Optional[dict[str, str]] = None,
     body: Optional[dict[str, Any]] = None,
+    ctx: Optional[ssl.SSLContext] = None,
 ) -> Any:
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method)
@@ -22,7 +33,7 @@ def _json_request(
         req.add_header(k, v)
 
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
             return json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
         body_text = e.read().decode(errors="replace")
@@ -36,7 +47,7 @@ def _json_request(
 def get_pending_items(cfg: AppConfig) -> list[dict[str, Any]]:
     url = f"{cfg.api_base_url}/api/pending-processing"
     print(f"[api] fetching pending items from {url}")
-    data = _json_request(url)
+    data = _json_request(url, ctx=_context(cfg))
     if data is None:
         return []
     if not isinstance(data, list):
@@ -60,7 +71,8 @@ def _patch_status(cfg: AppConfig, content_id: str, status: str) -> bool:
     body = {"status": status}
 
     print(f"[api] PATCH {url} -> {status}")
-    result = _json_request(url, method="PATCH", headers=headers, body=body)
+    result = _json_request(url, method="PATCH", headers=headers, body=body,
+                           ctx=_context(cfg))
     if result is None:
         return False
     print(f"[api] response: {result}")
