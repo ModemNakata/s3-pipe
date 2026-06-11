@@ -68,7 +68,7 @@ def _generate_preview(input_path: Path, output_dir: Path) -> Optional[Path]:
     cmd = [
         "ffmpeg", "-y", "-ss", "0", "-i", str(input_path),
         "-t", "5", "-an",
-        "-vf", "scale=-2:360",
+        "-vf", "scale=640:360:force_original_aspect_ratio=increase,crop=640:360",
         "-c:v", "libvpx-vp9", "-b:v", "500k",
         str(out),
     ]
