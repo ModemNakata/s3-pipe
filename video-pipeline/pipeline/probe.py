@@ -6,7 +6,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 
-from config import Config
+from config import VideoConfig
 
 
 @dataclass
@@ -34,50 +34,7 @@ class VideoMeta:
         return self.source_size_bytes / (1024 * 1024)
 
 
-def _probe_video(config: Config, data: dict) -> tuple:
-    s = data["streams"][0]
-    fmt = data["format"]
-
-    w = int(s["width"])
-    h = int(s["height"])
-    codec = s.get("codec_name", "unknown")
-
-    num, den = str(s.get("r_frame_rate", "30/1")).split("/")
-    fps = int(num) / int(den)
-
-    br = s.get("bit_rate") or fmt.get("bit_rate", "0")
-    br = int(br) if br not in ("N/A", "0") else 0
-
-    dur = float(fmt.get("duration", 0))
-    return w, h, codec, fps, br, dur
-
-
-def _probe_audio(config: Config) -> tuple:
-    cmd = [
-        "ffprobe", "-v", "error",
-        "-select_streams", "a:0",
-        "-show_entries", "stream=bit_rate,codec_name",
-        "-of", "json",
-        config.input_video,
-    ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        return 0, ""
-
-    try:
-        data = json.loads(proc.stdout)
-        if not data.get("streams"):
-            return 0, ""
-        s = data["streams"][0]
-        br = s.get("bit_rate", "0")
-        br = int(br) if br not in ("N/A", "0") else 0
-        codec = s.get("codec_name", "")
-        return br, codec
-    except (KeyError, IndexError, ValueError):
-        return 0, ""
-
-
-def probe(config: Config) -> VideoMeta:
+def probe(cfg: VideoConfig) -> VideoMeta:
     cmd = [
         "ffprobe", "-v", "error",
         "-select_streams", "v:0",
@@ -85,7 +42,7 @@ def probe(config: Config) -> VideoMeta:
         "stream=width,height,bit_rate,codec_name,r_frame_rate",
         "-show_entries", "format=bit_rate,duration",
         "-of", "json",
-        config.input_video,
+        cfg.input_video,
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
@@ -94,13 +51,42 @@ def probe(config: Config) -> VideoMeta:
 
     try:
         data = json.loads(proc.stdout)
-        w, h, codec, fps, br, dur = _probe_video(config, data)
+        s = data["streams"][0]
+        fmt = data["format"]
+        w = int(s["width"])
+        h = int(s["height"])
+        codec = s.get("codec_name", "unknown")
+        num, den = str(s.get("r_frame_rate", "30/1")).split("/")
+        fps = int(num) / int(den)
+        br = s.get("bit_rate") or fmt.get("bit_rate", "0")
+        br = int(br) if br not in ("N/A", "0") else 0
+        dur = float(fmt.get("duration", 0))
     except (KeyError, IndexError, ValueError) as e:
         print(f"[probe] failed to parse ffprobe output: {e}")
         sys.exit(1)
 
-    audio_br, audio_codec = _probe_audio(config)
-    source_bytes = os.path.getsize(config.input_video)
+    audio_br = 0
+    audio_codec = ""
+    acmd = [
+        "ffprobe", "-v", "error",
+        "-select_streams", "a:0",
+        "-show_entries", "stream=bit_rate,codec_name",
+        "-of", "json",
+        cfg.input_video,
+    ]
+    ap = subprocess.run(acmd, capture_output=True, text=True)
+    if ap.returncode == 0:
+        try:
+            adata = json.loads(ap.stdout)
+            if adata.get("streams"):
+                s2 = adata["streams"][0]
+                abr = s2.get("bit_rate", "0")
+                audio_br = int(abr) if abr not in ("N/A", "0") else 0
+                audio_codec = s2.get("codec_name", "")
+        except (KeyError, IndexError, ValueError):
+            pass
+
+    source_bytes = os.path.getsize(cfg.input_video)
 
     meta = VideoMeta(
         width=w, height=h, bitrate_bps=br, codec=codec,

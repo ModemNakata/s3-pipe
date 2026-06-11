@@ -5,47 +5,42 @@ import subprocess
 import sys
 from pathlib import Path
 
-from config import Config
+from config import ImageConfig
 
 
-def _build_filter(config: Config) -> str | None:
-    """Build the ffmpeg -vf string. Returns None if no filter needed."""
+def run(cfg: ImageConfig) -> int:
+    filter_string = None
     parts = []
-    if config.max_dimension > 0:
-        parts.append(f"scale='if(gt(iw,ih),{config.max_dimension},-2)':'if(gt(iw,ih),-2,{config.max_dimension})'")
-    return ",".join(parts) if parts else None
+    if cfg.max_dimension > 0:
+        parts.append(
+            f"scale='if(gt(iw,ih),{cfg.max_dimension},-2)':"
+            f"'if(gt(iw,ih),-2,{cfg.max_dimension})'"
+        )
+    if parts:
+        filter_string = ",".join(parts)
 
-
-def run(config: Config) -> int:
-    """Convert all images in input_dir to WebP. Returns count of processed files."""
-    filter_string = _build_filter(config)
     total_in = 0
     total_out = 0
     count = 0
     skipped = 0
 
-    for src_path in sorted(Path(config.input_dir).iterdir()):
+    for src_path in sorted(Path(cfg.input_dir).iterdir()):
         if not src_path.is_file():
             continue
 
         stem = src_path.stem
         out_name = f"{stem}.webp"
-        out_path = os.path.join(config.output_dir, out_name)
-
+        out_path = os.path.join(cfg.output_dir, out_name)
         in_bytes = src_path.stat().st_size
 
         cmd = ["ffmpeg", "-y", "-i", str(src_path)]
-
         if filter_string:
             cmd += ["-vf", filter_string]
-
-        if config.lossless:
+        if cfg.lossless:
             cmd += ["-lossless", "1"]
         else:
-            cmd += ["-quality", str(config.quality)]
-
-        cmd += ["-c:v", "libwebp"]
-        cmd.append(out_path)
+            cmd += ["-quality", str(cfg.quality)]
+        cmd += ["-c:v", "libwebp", out_path]
 
         proc = subprocess.run(cmd, capture_output=True, text=True)
         if proc.returncode != 0:
@@ -57,14 +52,12 @@ def run(config: Config) -> int:
         total_in += in_bytes
         total_out += out_bytes
         count += 1
-
-        reduction_pct = (1 - out_bytes / in_bytes) * 100 if in_bytes > 0 else 0
+        reduction = (1 - out_bytes / in_bytes) * 100 if in_bytes > 0 else 0
         print(f"[process] {src_path.name} -> {out_name}  "
-              f"{in_bytes / 1024:.1f}K -> {out_bytes / 1024:.1f}K  "
-              f"({reduction_pct:.1f}%)")
+              f"{in_bytes / 1024:.1f}K -> {out_bytes / 1024:.1f}K  ({reduction:.1f}%)")
 
     if count == 0:
-        print(f"[process] ERROR: no convertible image files found in '{config.input_dir}'")
+        print(f"[process] ERROR: no convertible image files found in '{cfg.input_dir}'")
         sys.exit(1)
 
     skip_msg = f", {skipped} skipped" if skipped else ""
