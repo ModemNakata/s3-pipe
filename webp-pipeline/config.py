@@ -17,7 +17,7 @@ class Config:
     # ── WebP encoding ─────────────────────────────────────────────────────────
     # Quality 0–100 (lower = smaller, more lossy). 100 gives maximum quality;
     # WebP still applies its own internal compression even at 100.
-    quality: int = 100
+    quality: int = 100 # 80 # 90
 
     # If True, encode losslessly (quality is ignored for lossless).
     lossless: bool = False
