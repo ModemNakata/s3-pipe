@@ -10,19 +10,11 @@ from .worker import process_item
 def run() -> None:
     cfg = AppConfig.from_env()
     cfg.setup_mc()
+    _print_banner(cfg)
+    run_loop(cfg)
 
-    print("")
-    print("╔══════════════════════════════════════════════╗")
-    print("║      S3 Pipeline Runner — starting up       ║")
-    print("╚══════════════════════════════════════════════╝")
-    print(f"  API:            {cfg.api_base_url}")
-    print(f"  S3 endpoint:    {cfg.s3_endpoint}")
-    print(f"  S3 orig bucket: {cfg.s3_bucket_origin}")
-    print(f"  S3 dest bucket: {cfg.s3_bucket}")
-    print(f"  Poll interval:  {cfg.poll_interval_sec}s")
-    print(f"  Work dir:       {cfg.work_dir}")
-    print("")
 
+def run_loop(cfg: AppConfig) -> None:
     while True:
         try:
             items = api.get_pending_items(cfg)
@@ -43,3 +35,17 @@ def run() -> None:
             traceback.print_exc()
             print(f"[runner] sleeping {cfg.poll_interval_sec}s before retry")
             time.sleep(cfg.poll_interval_sec)
+
+
+def _print_banner(cfg: AppConfig) -> None:
+    print("")
+    print("╔══════════════════════════════════════════════╗")
+    print("║      S3 Pipeline Runner — starting up       ║")
+    print("╚══════════════════════════════════════════════╝")
+    print(f"  API:            {cfg.api_base_url}")
+    print(f"  S3 endpoint:    {cfg.s3_endpoint}")
+    print(f"  S3 orig bucket: {cfg.s3_bucket_origin}")
+    print(f"  S3 dest bucket: {cfg.s3_bucket}")
+    print(f"  Poll interval:  {cfg.poll_interval_sec}s")
+    print(f"  Work dir:       {cfg.work_dir}")
+    print("")

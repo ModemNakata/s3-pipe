@@ -57,20 +57,35 @@ def get_pending_items(cfg: AppConfig) -> list[dict[str, Any]]:
     return data
 
 
-def mark_ready(cfg: AppConfig, content_id: str) -> bool:
-    return _patch_status(cfg, content_id, "ready")
+def get_content(cfg: AppConfig, content_id: str) -> Optional[dict[str, Any]]:
+    """GET /api/content/{id} — returns content item or None if not found."""
+    url = f"{cfg.api_base_url}/api/content/{content_id}"
+    print(f"[api] fetching content from {url}")
+    data = _json_request(url, ctx=_context(cfg))
+    if data is None or not isinstance(data, dict):
+        return None
+    return data
+
+
+def mark_ready(cfg: AppConfig, content_id: str,
+               thumbnail_url: str = "", preview_path: str = "") -> bool:
+    body: dict[str, Any] = {"status": "ready"}
+    if thumbnail_url:
+        body["thumbnail_url"] = thumbnail_url
+    if preview_path:
+        body["preview_path"] = preview_path
+    return _patch(cfg, content_id, body)
 
 
 def mark_failed(cfg: AppConfig, content_id: str) -> bool:
-    return _patch_status(cfg, content_id, "failed")
+    return _patch(cfg, content_id, {"status": "failed"})
 
 
-def _patch_status(cfg: AppConfig, content_id: str, status: str) -> bool:
+def _patch(cfg: AppConfig, content_id: str, body: dict[str, Any]) -> bool:
     url = f"{cfg.api_base_url}/api/content/{content_id}/status"
     headers = {"X-Api-Key": cfg.s3_access_key}
-    body = {"status": status}
 
-    print(f"[api] PATCH {url} -> {status}")
+    print(f"[api] PATCH {url} -> {json.dumps(body)}")
     result = _json_request(url, method="PATCH", headers=headers, body=body,
                            ctx=_context(cfg))
     if result is None:

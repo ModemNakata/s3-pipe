@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
-import os
+import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from config import AppConfig, filter_profiles
 from deps import check_video, check_image
@@ -45,6 +45,41 @@ def _clear() -> None:
         del sys.modules[k]
 
 
+def _generate_thumbnail(input_path: Path, output_dir: Path) -> Optional[Path]:
+    out = output_dir / "thumbnail.jpg"
+    cmd = [
+        "ffmpeg", "-y", "-i", str(input_path),
+        "-ss", "00:00:05",
+        "-vframes", "1",
+        "-vf", "scale=1280:720:force_original_aspect_ratio=decrease,"
+               "pad=1280:720:(ow-iw)/2:(oh-ih)/2",
+        str(out),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(f"[processor] WARNING: thumbnail failed:\n{proc.stderr[-300:]}")
+        return None
+    print(f"[processor] thumbnail: {out.name} ({out.stat().st_size / 1024:.1f} KB)")
+    return out
+
+
+def _generate_preview(input_path: Path, output_dir: Path) -> Optional[Path]:
+    out = output_dir / "preview.webm"
+    cmd = [
+        "ffmpeg", "-y", "-ss", "0", "-i", str(input_path),
+        "-t", "5", "-an",
+        "-vf", "scale=-2:360",
+        "-c:v", "libvpx-vp9", "-b:v", "500k",
+        str(out),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(f"[processor] WARNING: preview failed:\n{proc.stderr[-300:]}")
+        return None
+    print(f"[processor] preview: {out.name} ({out.stat().st_size / 1024:.1f} KB)")
+    return out
+
+
 def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Path) -> Path:
     output_dir = workdir / content_id / "h264_output"
     print(f"[processor] ── H264 pipeline for {content_id} ──")
@@ -76,6 +111,10 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
         actual[p.name] = transcode.run(vcfg, p, meta)
 
     manifest.generate(str(output_dir), profiles, actual)
+
+    _generate_thumbnail(input_path, output_dir)
+    _generate_preview(input_path, output_dir)
+
     print(f"[processor] H264 pipeline complete for {content_id}")
     return output_dir
 

@@ -50,11 +50,18 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
         print(f"\n--- step 3/4: upload to S3_BUCKET ---")
         if content_type == "video":
             upload.upload_video(cfg, output_dir, content_id)
+            s3_prefix = f"videos/{content_id}"
+            thumbnail_url = f"{s3_prefix}/thumbnail.jpg"
+            preview_path = f"{s3_prefix}/preview.webm"
         else:
             upload.upload_images(cfg, output_dir, content_id)
+            thumbnail_url = ""
+            preview_path = ""
 
         print(f"\n--- step 4/4: mark as ready ---")
-        ok = api.mark_ready(cfg, content_id)
+        ok = api.mark_ready(cfg, content_id,
+                            thumbnail_url=thumbnail_url,
+                            preview_path=preview_path)
         if not ok:
             print(f"[worker] WARNING: API returned error for mark_ready, "
                   f"content may remain in 'processing' state")
