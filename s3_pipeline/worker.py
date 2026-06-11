@@ -35,10 +35,12 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
         print(f"\n--- step 2/4: encode ---")
         t0 = time.time()
 
+        duration = 0
+
         if content_type == "video":
             if len(local_paths) != 1:
                 raise ValueError(f"expected 1 file for video, got {len(local_paths)}")
-            output_dir = proc.process_video(cfg, local_paths[0], content_id, cfg.work_dir)
+            output_dir, duration = proc.process_video(cfg, local_paths[0], content_id, cfg.work_dir)
         elif content_type == "image_set":
             output_dir = proc.process_images(cfg, download_dir, content_id, cfg.work_dir)
         else:
@@ -61,7 +63,8 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
         print(f"\n--- step 4/4: mark as ready ---")
         ok = api.mark_ready(cfg, content_id,
                             thumbnail_url=thumbnail_url,
-                            preview_path=preview_path)
+                            preview_path=preview_path,
+                            duration=duration)
         if not ok:
             print(f"[worker] WARNING: API returned error for mark_ready, "
                   f"content may remain in 'processing' state")

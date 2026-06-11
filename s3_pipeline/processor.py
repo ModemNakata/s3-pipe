@@ -80,7 +80,7 @@ def _generate_preview(input_path: Path, output_dir: Path) -> Optional[Path]:
     return out
 
 
-def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Path) -> Path:
+def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Path) -> tuple[Path, float]:
     output_dir = workdir / content_id / "h264_output"
     print(f"[processor] ── H264 pipeline for {content_id} ──")
     print(f"[processor] input:  {input_path}")
@@ -102,7 +102,7 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
     if not profiles:
         print(f"[processor] WARNING: no profile fits source ({meta.min_dim}p), "
               f"nothing to encode")
-        return output_dir
+        return output_dir, meta.duration_s
 
     print(f"[processor] active profiles: {[p.name for p in profiles]}")
 
@@ -116,7 +116,7 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
     _generate_preview(input_path, output_dir)
 
     print(f"[processor] H264 pipeline complete for {content_id}")
-    return output_dir
+    return output_dir, meta.duration_s
 
 
 def process_images(cfg: AppConfig, download_dir: Path, content_id: str, workdir: Path) -> Path:

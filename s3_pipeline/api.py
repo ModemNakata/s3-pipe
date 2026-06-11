@@ -68,12 +68,15 @@ def get_content(cfg: AppConfig, content_id: str) -> Optional[dict[str, Any]]:
 
 
 def mark_ready(cfg: AppConfig, content_id: str,
-               thumbnail_url: str = "", preview_path: str = "") -> bool:
+               thumbnail_url: str = "", preview_path: str = "",
+               duration: float = 0) -> bool:
     body: dict[str, Any] = {"status": "ready"}
     if thumbnail_url:
         body["thumbnail_url"] = thumbnail_url
     if preview_path:
         body["preview_path"] = preview_path
+    if duration > 0:
+        body["duration"] = round(duration, 2)
     return _patch(cfg, content_id, body)
 
 
