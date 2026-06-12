@@ -38,7 +38,7 @@ def main() -> None:
                 "content_id": args.uuid,
                 "content_type": "video",
                 "title": args.uuid,
-                "files": [{"path": args.file, "original_name": args.file.split("/")[-1]}],
+                "files": [{"path": args.file}],
             }
             print(f"[main] direct mode: content={args.uuid}, file={args.file}")
         else:

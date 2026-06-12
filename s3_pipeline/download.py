@@ -31,8 +31,7 @@ def download_item_files(
     dest_dir.mkdir(parents=True, exist_ok=True)
     paths: list[Path] = []
     for f in files:
-        original_name = f.get("original_name", f["path"].split("/")[-1])
-        local_path = dest_dir / original_name
+        local_path = dest_dir / f["path"].split("/")[-1]
         download_file(cfg, f["path"], local_path)
         paths.append(local_path)
     return paths

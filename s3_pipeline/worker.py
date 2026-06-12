@@ -24,7 +24,7 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
     print(f"{'='*60}")
     print(f"[worker] processing: {content_id} ({content_type})")
     print(f"[worker] title: {title}")
-    print(f"[worker] files: {[f['original_name'] for f in files]}")
+    print(f"[worker] files: {[f['path'].split('/')[-1] for f in files]}")
     print(f"{'='*60}")
 
     try:
