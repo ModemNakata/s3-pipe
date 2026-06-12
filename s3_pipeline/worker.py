@@ -42,7 +42,8 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
                 raise ValueError(f"expected 1 file for video, got {len(local_paths)}")
             output_dir, duration = proc.process_video(cfg, local_paths[0], content_id, cfg.work_dir)
         elif content_type == "image_set":
-            output_dir = proc.process_images(cfg, download_dir, content_id, cfg.work_dir)
+            output_dir = proc.process_images(cfg, download_dir, content_id, cfg.work_dir,
+                                             first_image=local_paths[0])
         else:
             raise ValueError(f"unknown content_type: {content_type}")
 
@@ -58,8 +59,9 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
             processed_files = [f"{s3_prefix}/master.m3u8"]
         else:
             upload.upload_images(cfg, output_dir, content_id)
+            s3_prefix = f"galleries/{content_id}"
             thumbnail_url = ""
-            preview_path = ""
+            preview_path = f"{s3_prefix}/preview.webp"
             processed_files = [
                 f"galleries/{content_id}/{f['path'].split('/')[-1].rsplit('.', 1)[0]}.webp"
                 for f in files

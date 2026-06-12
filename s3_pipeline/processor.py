@@ -161,7 +161,26 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
     return output_dir, meta.duration_s
 
 
-def process_images(cfg: AppConfig, download_dir: Path, content_id: str, workdir: Path) -> Path:
+def _generate_image_preview(input_path: Path, output_dir: Path) -> Optional[Path]:
+    out = output_dir / "preview.webp"
+    print(f"[processor] generating image preview square from {input_path.name}")
+    cmd = [
+        "ffmpeg", "-y", "-i", str(input_path),
+        "-vf", "crop='min(iw,ih)':'min(iw,ih)',"
+               "scale='min(720,iw)':'min(720,ih)'",
+        "-c:v", "libwebp", "-quality", "100",
+        str(out),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(f"[processor] WARNING: image preview failed:\n{proc.stderr[-300:]}")
+        return None
+    print(f"[processor] image preview: {out.name} ({out.stat().st_size / 1024:.1f} KB)")
+    return out
+
+
+def process_images(cfg: AppConfig, download_dir: Path, content_id: str,
+                   workdir: Path, first_image: Optional[Path] = None) -> Path:
     output_dir = workdir / content_id / "webp_output"
     print(f"[processor] ── WebP pipeline for {content_id} ──")
     print(f"[processor] input:  {download_dir}")
@@ -176,6 +195,9 @@ def process_images(cfg: AppConfig, download_dir: Path, content_id: str, workdir:
 
     output_dir.mkdir(parents=True, exist_ok=True)
     process_mod.run(icfg)
+
+    if first_image is not None and first_image.exists():
+        _generate_image_preview(first_image, output_dir)
 
     print(f"[processor] WebP pipeline complete for {content_id}")
     return output_dir
