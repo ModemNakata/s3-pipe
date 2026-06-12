@@ -55,16 +55,22 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
             s3_prefix = f"videos/{content_id}"
             thumbnail_url = f"{s3_prefix}/thumbnail.jpg"
             preview_path = f"{s3_prefix}/preview.webm"
+            processed_files = [f"{s3_prefix}/master.m3u8"]
         else:
             upload.upload_images(cfg, output_dir, content_id)
             thumbnail_url = ""
             preview_path = ""
+            processed_files = [
+                f"galleries/{content_id}/{f['path'].split('/')[-1].rsplit('.', 1)[0]}.webp"
+                for f in files
+            ]
 
         print(f"\n--- step 4/4: mark as ready ---")
         ok = api.mark_ready(cfg, content_id,
                             thumbnail_url=thumbnail_url,
                             preview_path=preview_path,
-                            duration=duration)
+                            duration=duration,
+                            processed_files=processed_files)
         if not ok:
             print(f"[worker] WARNING: API returned error for mark_ready, "
                   f"content may remain in 'processing' state")
