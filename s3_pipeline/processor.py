@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
-from config import AppConfig, filter_profiles
+from config import AppConfig, Profile, filter_profiles
 from deps import check_video, check_image
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -103,6 +103,21 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
         print(f"[processor] WARNING: no profile fits source ({meta.min_dim}p), "
               f"nothing to encode")
         return output_dir, meta.duration_s
+
+    highest = max(p.threshold for p in profiles)
+    if meta.min_dim > highest:
+        src_name = f"{meta.min_dim}p"
+        src_profile = Profile(
+            name=src_name,
+            bandwidth=int(meta.bitrate_bps * 1.1),
+            ref_width=meta.min_dim,
+            threshold=meta.min_dim,
+            ceiling_kbps=meta.bitrate_bps // 1000,
+            passthrough=True,
+        )
+        profiles.insert(0, src_profile)
+        print(f"[processor] added source profile: {src_name} "
+              f"({meta.width}x{meta.height})")
 
     print(f"[processor] active profiles: {[p.name for p in profiles]}")
 

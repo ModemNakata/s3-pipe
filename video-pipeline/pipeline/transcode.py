@@ -16,13 +16,15 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     scale_filter, actual_res = build_scale(profile, meta.width, meta.height)
 
     print(f"[transcode] {profile.name} ({actual_res})  "
-          f"crf={cfg.crf}  maxrate={maxrate}k  bufsize={bufsize}k")
+          f"crf={cfg.crf}  maxrate={maxrate}k  bufsize={bufsize}k"
+          f"{'  (passthrough)' if profile.passthrough else ''}")
 
     playlist = os.path.join(cfg.output_dir, f"{profile.name}.m3u8")
     seg_pattern = os.path.join(cfg.output_dir, f"{profile.name}_%03d.m4s")
 
     cmd = ["ffmpeg", "-y", "-i", cfg.input_video]
-    cmd += ["-vf", scale_filter]
+    if scale_filter:
+        cmd += ["-vf", scale_filter]
     cmd += ["-c:v", cfg.video_codec]
     cmd += ["-crf", str(cfg.crf)]
     cmd += ["-maxrate", f"{maxrate}k"]

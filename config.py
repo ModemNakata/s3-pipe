@@ -20,6 +20,7 @@ class Profile:
     ref_width: int
     threshold: int
     ceiling_kbps: int
+    passthrough: bool = False
 
 
 @dataclass
@@ -260,7 +261,9 @@ def calc_bufsize(maxrate_kbps: int, buf_factor: float) -> int:
     return int(maxrate_kbps * buf_factor)
 
 
-def build_scale(profile: Profile, src_w: int, src_h: int) -> Tuple[str, str]:
+def build_scale(profile: Profile, src_w: int, src_h: int) -> Tuple[Optional[str], str]:
+    if profile.passthrough:
+        return None, f"{src_w}x{src_h}"
     if src_w >= src_h:
         w = profile.ref_width
         h = int(w * src_h / src_w / 2) * 2
