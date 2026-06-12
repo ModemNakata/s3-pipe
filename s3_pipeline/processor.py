@@ -45,14 +45,30 @@ def _clear() -> None:
         del sys.modules[k]
 
 
-def _generate_thumbnail(input_path: Path, output_dir: Path) -> Optional[Path]:
+def _target_16x9(src_w: int, src_h: int, max_short: int) -> tuple[int, int]:
+    min_dim = min(src_w, src_h)
+    short_side = min(min_dim, max_short)
+    if src_w >= src_h:  # landscape — short side is height
+        h = short_side
+        w = h * 16 // 9
+    else:  # portrait — short side is width
+        w = short_side
+        h = w * 9 // 16
+    w -= w % 2
+    h -= h % 2
+    return w, h
+
+
+def _generate_thumbnail(input_path: Path, output_dir: Path, src_w: int, src_h: int) -> Optional[Path]:
+    tw, th = _target_16x9(src_w, src_h, 720)
     out = output_dir / "thumbnail.jpg"
+    print(f"[processor] thumbnail target: {tw}x{th}")
     cmd = [
         "ffmpeg", "-y", "-i", str(input_path),
         "-ss", "00:00:05",
         "-vframes", "1",
-        "-vf", "scale=1280:720:force_original_aspect_ratio=increase,"
-               "crop=1280:720",
+        "-vf", f"scale={tw}:{th}:force_original_aspect_ratio=increase,"
+               f"crop={tw}:{th}",
         str(out),
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -63,12 +79,14 @@ def _generate_thumbnail(input_path: Path, output_dir: Path) -> Optional[Path]:
     return out
 
 
-def _generate_preview(input_path: Path, output_dir: Path) -> Optional[Path]:
+def _generate_preview(input_path: Path, output_dir: Path, src_w: int, src_h: int) -> Optional[Path]:
+    tw, th = _target_16x9(src_w, src_h, 360)
     out = output_dir / "preview.webm"
+    print(f"[processor] preview target: {tw}x{th}")
     cmd = [
         "ffmpeg", "-y", "-ss", "0", "-i", str(input_path),
         "-t", "5", "-an",
-        "-vf", "scale=640:360:force_original_aspect_ratio=increase,crop=640:360",
+        "-vf", f"scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}",
         "-c:v", "libvpx-vp9", "-b:v", "500k",
         str(out),
     ]
@@ -127,8 +145,8 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
 
     manifest.generate(str(output_dir), profiles, actual)
 
-    _generate_thumbnail(input_path, output_dir)
-    _generate_preview(input_path, output_dir)
+    _generate_thumbnail(input_path, output_dir, meta.width, meta.height)
+    _generate_preview(input_path, output_dir, meta.width, meta.height)
 
     print(f"[processor] H264 pipeline complete for {content_id}")
     return output_dir, meta.duration_s
