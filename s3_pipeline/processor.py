@@ -117,25 +117,34 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
     output_dir.mkdir(parents=True, exist_ok=True)
 
     profiles = filter_profiles(vcfg.profiles, meta.min_dim)
-    if not profiles:
-        print(f"[processor] WARNING: no profile fits source ({meta.min_dim}p), "
-              f"nothing to encode")
-        return output_dir, meta.duration_s
 
-    highest = max(p.threshold for p in profiles)
-    if meta.min_dim > highest:
-        src_name = f"{meta.min_dim}p"
+    if not profiles:
         src_profile = Profile(
-            name=src_name,
+            name=f"{meta.min_dim}p",
             bandwidth=int(meta.bitrate_bps * 1.1),
             ref_width=meta.min_dim,
             threshold=meta.min_dim,
             ceiling_kbps=meta.bitrate_bps // 1000,
             passthrough=True,
         )
-        profiles.insert(0, src_profile)
-        print(f"[processor] added source profile: {src_name} "
-              f"({meta.width}x{meta.height})")
+        profiles = [src_profile]
+        print(f"[processor] source below any profile, using passthrough: "
+              f"{src_profile.name} ({meta.width}x{meta.height})")
+    else:
+        highest = max(p.threshold for p in profiles)
+        if meta.min_dim > highest:
+            src_name = f"{meta.min_dim}p"
+            src_profile = Profile(
+                name=src_name,
+                bandwidth=int(meta.bitrate_bps * 1.1),
+                ref_width=meta.min_dim,
+                threshold=meta.min_dim,
+                ceiling_kbps=meta.bitrate_bps // 1000,
+                passthrough=True,
+            )
+            profiles.insert(0, src_profile)
+            print(f"[processor] added source profile: {src_name} "
+                  f"({meta.width}x{meta.height})")
 
     print(f"[processor] active profiles: {[p.name for p in profiles]}")
 
