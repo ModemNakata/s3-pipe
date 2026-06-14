@@ -79,13 +79,13 @@ def _generate_thumbnail(input_path: Path, output_dir: Path, src_w: int, src_h: i
     return out
 
 
-def _generate_preview(input_path: Path, output_dir: Path, src_w: int, src_h: int) -> Optional[Path]:
+def _generate_preview(input_path: Path, output_dir: Path, src_w: int, src_h: int, duration: int = 5) -> Optional[Path]:
     tw, th = _target_16x9(src_w, src_h, 360)
     out = output_dir / "preview.webm"
     print(f"[processor] preview target: {tw}x{th}")
     cmd = [
         "ffmpeg", "-y", "-ss", "0", "-i", str(input_path),
-        "-t", "5", "-an",
+        "-t", str(duration), "-an",
         "-vf", f"scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}",
         "-c:v", "libvpx-vp9", "-b:v", "500k",
         str(out),
@@ -155,7 +155,7 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
     manifest.generate(str(output_dir), profiles, actual)
 
     _generate_thumbnail(input_path, output_dir, meta.width, meta.height)
-    _generate_preview(input_path, output_dir, meta.width, meta.height)
+    _generate_preview(input_path, output_dir, meta.width, meta.height, cfg.preview_duration)
 
     print(f"[processor] H264 pipeline complete for {content_id}")
     return output_dir, meta.duration_s

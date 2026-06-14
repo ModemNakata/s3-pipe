@@ -113,6 +113,9 @@ class AppConfig:
 
     profiles: List[Profile] = field(default_factory=list)
 
+    # Preview defaults
+    preview_duration: int = 5
+
     # Image defaults
     image_quality: int = 100
     image_lossless: bool = False
@@ -172,6 +175,7 @@ class AppConfig:
             hls_playlist_type=env.get("HLS_PLAYLIST_TYPE", "vod"),
             hls_keyframe_interval=int(env.get("HLS_KEYFRAME_INTERVAL", "60")),
             profiles=profiles,
+            preview_duration=int(env.get("PREVIEW_DURATION", "5")),
             image_quality=int(env.get("WEBP_QUALITY", "100")),
             image_lossless=(env.get("WEBP_LOSSLESS", "false").lower()
                             in ("true", "1", "yes")),
