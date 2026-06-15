@@ -43,7 +43,8 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
 
     if cfg.watermark.enabled:
         w = cfg.watermark
-        font_size = calc_font_size(meta.width, meta.height, w)
+        out_w, out_h = map(int, actual_res.split("x"))
+        font_size = calc_font_size(out_w, out_h, w)
         full_text = f"{w.text}@{w.uploader_name}" if w.uploader_name else w.text
         watermark_text = _write_textfile(full_text)
         wt_parts = [
