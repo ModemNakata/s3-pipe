@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Optional
 
-from config import AppConfig, Profile, filter_profiles
+from config import AppConfig, Profile, WatermarkConfig, filter_profiles
 from deps import check_video, check_image
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -45,13 +47,27 @@ def _clear() -> None:
         del sys.modules[k]
 
 
+def _write_textfile(text: str) -> str:
+    f = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
+    f.write(text)
+    f.close()
+    return f.name
+
+
+def _cleanup_textfile(path: str) -> None:
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
+
 def _target_16x9(src_w: int, src_h: int, max_short: int) -> tuple[int, int]:
     min_dim = min(src_w, src_h)
     short_side = min(min_dim, max_short)
-    if src_w >= src_h:  # landscape — short side is height
+    if src_w >= src_h:
         h = short_side
         w = h * 16 // 9
-    else:  # portrait — short side is width
+    else:
         w = short_side
         h = w * 9 // 16
     w -= w % 2
@@ -59,19 +75,45 @@ def _target_16x9(src_w: int, src_h: int, max_short: int) -> tuple[int, int]:
     return w, h
 
 
-def _generate_thumbnail(input_path: Path, output_dir: Path, src_w: int, src_h: int) -> Optional[Path]:
+def _build_watermark_filter(wcfg: WatermarkConfig, textfile: str) -> str:
+    return (
+        f"drawtext="
+        f"textfile={textfile}:"
+        f"fontfile={wcfg.font}:"
+        f"fontcolor={wcfg.color}:"
+        f"fontsize={wcfg.font_size_expr}:"
+        f"x={wcfg.x}:"
+        f"y={wcfg.y}"
+    )
+
+
+def _generate_thumbnail(input_path: Path, output_dir: Path,
+                         src_w: int, src_h: int,
+                         wcfg: WatermarkConfig) -> Optional[Path]:
     tw, th = _target_16x9(src_w, src_h, 720)
     out = output_dir / "thumbnail.jpg"
     print(f"[processor] thumbnail target: {tw}x{th}")
+
+    filter_parts = [
+        f"scale={tw}:{th}:force_original_aspect_ratio=increase",
+        f"crop={tw}:{th}",
+    ]
+
+    textfile = None
+    if wcfg.enabled:
+        textfile = _write_textfile(wcfg.text)
+        filter_parts.append(_build_watermark_filter(wcfg, textfile))
+
     cmd = [
         "ffmpeg", "-y", "-i", str(input_path),
         "-ss", "00:00:05",
         "-vframes", "1",
-        "-vf", f"scale={tw}:{th}:force_original_aspect_ratio=increase,"
-               f"crop={tw}:{th}",
+        "-vf", ",".join(filter_parts),
         str(out),
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
+    if textfile is not None:
+        _cleanup_textfile(textfile)
     if proc.returncode != 0:
         print(f"[processor] WARNING: thumbnail failed:\n{proc.stderr[-300:]}")
         return None
@@ -79,18 +121,33 @@ def _generate_thumbnail(input_path: Path, output_dir: Path, src_w: int, src_h: i
     return out
 
 
-def _generate_preview(input_path: Path, output_dir: Path, src_w: int, src_h: int, duration: int = 5) -> Optional[Path]:
+def _generate_preview(input_path: Path, output_dir: Path,
+                       src_w: int, src_h: int,
+                       duration: int, wcfg: WatermarkConfig) -> Optional[Path]:
     tw, th = _target_16x9(src_w, src_h, 360)
     out = output_dir / "preview.webm"
     print(f"[processor] preview target: {tw}x{th}")
+
+    filter_parts = [
+        f"scale={tw}:{th}:force_original_aspect_ratio=increase",
+        f"crop={tw}:{th}",
+    ]
+
+    textfile = None
+    if wcfg.enabled:
+        textfile = _write_textfile(wcfg.text)
+        filter_parts.append(_build_watermark_filter(wcfg, textfile))
+
     cmd = [
         "ffmpeg", "-y", "-ss", "0", "-i", str(input_path),
         "-t", str(duration), "-an",
-        "-vf", f"scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}",
+        "-vf", ",".join(filter_parts),
         "-c:v", "libvpx-vp9", "-b:v", "500k",
         str(out),
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
+    if textfile is not None:
+        _cleanup_textfile(textfile)
     if proc.returncode != 0:
         print(f"[processor] WARNING: preview failed:\n{proc.stderr[-300:]}")
         return None
@@ -154,24 +211,39 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
 
     manifest.generate(str(output_dir), profiles, actual)
 
-    _generate_thumbnail(input_path, output_dir, meta.width, meta.height)
-    _generate_preview(input_path, output_dir, meta.width, meta.height, cfg.preview_duration)
+    wcfg = vcfg.watermark
+    _generate_thumbnail(input_path, output_dir, meta.width, meta.height, wcfg)
+    _generate_preview(input_path, output_dir, meta.width, meta.height,
+                       cfg.preview_duration, wcfg)
 
     print(f"[processor] H264 pipeline complete for {content_id}")
     return output_dir, meta.duration_s
 
 
-def _generate_image_preview(input_path: Path, output_dir: Path) -> Optional[Path]:
+def _generate_image_preview(input_path: Path, output_dir: Path,
+                             wcfg: WatermarkConfig) -> Optional[Path]:
     out = output_dir / "preview.webp"
     print(f"[processor] generating image preview square from {input_path.name}")
+
+    filter_parts = [
+        "crop='min(iw,ih)':'min(iw,ih)'",
+        "scale='min(720,iw)':'min(720,ih)'",
+    ]
+
+    textfile = None
+    if wcfg.enabled:
+        textfile = _write_textfile(wcfg.text)
+        filter_parts.append(_build_watermark_filter(wcfg, textfile))
+
     cmd = [
         "ffmpeg", "-y", "-i", str(input_path),
-        "-vf", "crop='min(iw,ih)':'min(iw,ih)',"
-               "scale='min(720,iw)':'min(720,ih)'",
+        "-vf", ",".join(filter_parts),
         "-c:v", "libwebp", "-quality", "100",
         str(out),
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
+    if textfile is not None:
+        _cleanup_textfile(textfile)
     if proc.returncode != 0:
         print(f"[processor] WARNING: image preview failed:\n{proc.stderr[-300:]}")
         return None
@@ -197,7 +269,7 @@ def process_images(cfg: AppConfig, download_dir: Path, content_id: str,
     process_mod.run(icfg)
 
     if first_image is not None and first_image.exists():
-        _generate_image_preview(first_image, output_dir)
+        _generate_image_preview(first_image, output_dir, icfg.watermark)
 
     print(f"[processor] WebP pipeline complete for {content_id}")
     return output_dir

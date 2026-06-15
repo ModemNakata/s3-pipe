@@ -10,6 +10,21 @@ from typing import List, Optional, Tuple
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Watermark types
+# ═══════════════════════════════════════════════════════════════════════
+
+@dataclass
+class WatermarkConfig:
+    enabled: bool = True
+    text: str = "fevid.cloud"
+    font: str = ""
+    font_size_expr: str = "h*0.02"
+    color: str = "#7ccf00"
+    x: int = 5
+    y: int = 5
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Video pipeline types
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -50,6 +65,7 @@ class VideoConfig:
         Profile("720p",  3000000, 1280, 720,  3000),
         Profile("480p",  1200000, 854,  480,  1200),
     ])
+    watermark: WatermarkConfig = field(default_factory=WatermarkConfig)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -63,6 +79,7 @@ class ImageConfig:
     quality: int = 100
     lossless: bool = False
     max_dimension: int = 0
+    watermark: WatermarkConfig = field(default_factory=WatermarkConfig)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -120,6 +137,15 @@ class AppConfig:
     image_quality: int = 100
     image_lossless: bool = False
     image_max_dimension: int = 0
+
+    # Watermark defaults
+    watermark_enabled: bool = False
+    watermark_text: str = "fevid.cloud/@SuperUser"
+    watermark_font: str = ""
+    watermark_font_size_expr: str = "h*0.02"
+    watermark_color: str = "#7ccf00"
+    watermark_x: int = 5
+    watermark_y: int = 5
 
     # ── helpers ────────────────────────────────────────────────────────
 
@@ -180,6 +206,15 @@ class AppConfig:
             image_lossless=(env.get("WEBP_LOSSLESS", "false").lower()
                             in ("true", "1", "yes")),
             image_max_dimension=int(env.get("WEBP_MAX_DIMENSION", "0")),
+
+            watermark_enabled=(env.get("WATERMARK_ENABLED", "false").lower()
+                               in ("true", "1", "yes")),
+            watermark_text=env.get("WATERMARK_TEXT", "fevid.cloud/@SuperUser"),
+            watermark_font=env.get("WATERMARK_FONT", ""),
+            watermark_font_size_expr=env.get("WATERMARK_FONT_SIZE", "h*0.02"),
+            watermark_color=env.get("WATERMARK_COLOR", "#7ccf00"),
+            watermark_x=int(env.get("WATERMARK_X", "5")),
+            watermark_y=int(env.get("WATERMARK_Y", "5")),
         )
 
     @staticmethod
@@ -217,6 +252,15 @@ class AppConfig:
                 keyframe_interval=self.hls_keyframe_interval,
             ),
             profiles=list(self.profiles),
+            watermark=WatermarkConfig(
+                enabled=self.watermark_enabled,
+                text=self.watermark_text,
+                font=self.watermark_font,
+                font_size_expr=self.watermark_font_size_expr,
+                color=self.watermark_color,
+                x=self.watermark_x,
+                y=self.watermark_y,
+            ),
         )
 
     def build_image_config(self, input_dir: str, output_dir: str) -> ImageConfig:
@@ -226,6 +270,15 @@ class AppConfig:
             quality=self.image_quality,
             lossless=self.image_lossless,
             max_dimension=self.image_max_dimension,
+            watermark=WatermarkConfig(
+                enabled=self.watermark_enabled,
+                text=self.watermark_text,
+                font=self.watermark_font,
+                font_size_expr=self.watermark_font_size_expr,
+                color=self.watermark_color,
+                x=self.watermark_x,
+                y=self.watermark_y,
+            ),
         )
 
     def setup_mc(self) -> None:

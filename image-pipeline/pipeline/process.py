@@ -3,21 +3,52 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from config import ImageConfig
 
 
+def _write_textfile(text: str) -> str:
+    f = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
+    f.write(text)
+    f.close()
+    return f.name
+
+
+def _cleanup_textfile(path: str) -> None:
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
+
 def run(cfg: ImageConfig) -> int:
-    filter_string = None
     parts = []
     if cfg.max_dimension > 0:
         parts.append(
             f"scale='if(gt(iw,ih),{cfg.max_dimension},-2)':"
             f"'if(gt(iw,ih),-2,{cfg.max_dimension})'"
         )
-    if parts:
-        filter_string = ",".join(parts)
+
+    textfile = None
+    if cfg.watermark.enabled:
+        textfile = _write_textfile(cfg.watermark.text)
+        wt = (
+            f"drawtext="
+            f"textfile={textfile}:"
+            f"fontfile={cfg.watermark.font}:"
+            f"fontcolor={cfg.watermark.color}:"
+            f"fontsize={cfg.watermark.font_size_expr}:"
+            f"x={cfg.watermark.x}:"
+            f"y={cfg.watermark.y}"
+        )
+        parts.append(wt)
+
+    filter_string = ",".join(parts) if parts else None
+
+    wm_label = " +wm" if cfg.watermark.enabled else ""
+    print(f"[process] watermark={'on' if cfg.watermark.enabled else 'off'}")
 
     total_in = 0
     total_out = 0
@@ -55,6 +86,9 @@ def run(cfg: ImageConfig) -> int:
         reduction = (1 - out_bytes / in_bytes) * 100 if in_bytes > 0 else 0
         print(f"[process] {src_path.name} -> {out_name}  "
               f"{in_bytes / 1024:.1f}K -> {out_bytes / 1024:.1f}K  ({reduction:.1f}%)")
+
+    if textfile is not None:
+        _cleanup_textfile(textfile)
 
     if count == 0:
         print(f"[process] ERROR: no convertible image files found in '{cfg.input_dir}'")

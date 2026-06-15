@@ -3,10 +3,31 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from config import VideoConfig, Profile, calc_maxrate, calc_bufsize, build_scale
 from pipeline.probe import VideoMeta
+
+
+_global_textfiles: list[str] = []
+
+
+def _cleanup_textfiles() -> None:
+    while _global_textfiles:
+        p = _global_textfiles.pop()
+        try:
+            os.unlink(p)
+        except OSError:
+            pass
+
+
+def _write_textfile(text: str) -> str:
+    f = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
+    f.write(text)
+    f.close()
+    _global_textfiles.append(f.name)
+    return f.name
 
 
 def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
@@ -15,16 +36,35 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     bufsize = calc_bufsize(maxrate, cfg.buf_factor)
     scale_filter, actual_res = build_scale(profile, meta.width, meta.height)
 
+    watermark_text = None
+    filter_parts = []
+    if scale_filter:
+        filter_parts.append(scale_filter)
+
+    if cfg.watermark.enabled:
+        watermark_text = _write_textfile(cfg.watermark.text)
+        wt = (
+            f"drawtext="
+            f"textfile={watermark_text}:"
+            f"fontfile={cfg.watermark.font}:"
+            f"fontcolor={cfg.watermark.color}:"
+            f"fontsize={cfg.watermark.font_size_expr}:"
+            f"x={cfg.watermark.x}:"
+            f"y={cfg.watermark.y}"
+        )
+        filter_parts.append(wt)
+
+    wm_label = " +wm" if cfg.watermark.enabled else ""
     print(f"[transcode] {profile.name} ({actual_res})  "
           f"crf={cfg.crf}  maxrate={maxrate}k  bufsize={bufsize}k"
-          f"{'  (passthrough)' if profile.passthrough else ''}")
+          f"{'  (passthrough)' if profile.passthrough else ''}{wm_label}")
 
     playlist = os.path.join(cfg.output_dir, f"{profile.name}.m3u8")
     seg_pattern = os.path.join(cfg.output_dir, f"{profile.name}_%03d.m4s")
 
     cmd = ["ffmpeg", "-y", "-i", cfg.input_video]
-    if scale_filter:
-        cmd += ["-vf", scale_filter]
+    if filter_parts:
+        cmd += ["-vf", ",".join(filter_parts)]
     cmd += ["-c:v", cfg.video_codec]
     cmd += ["-crf", str(cfg.crf)]
     cmd += ["-maxrate", f"{maxrate}k"]
@@ -59,6 +99,7 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     cmd.append(playlist)
 
     proc = subprocess.run(cmd, capture_output=True, text=True)
+    _cleanup_textfiles()
     if proc.returncode != 0:
         print(f"[transcode] ERROR: {profile.name} failed:\n{proc.stderr[-500:]}")
         sys.exit(1)
