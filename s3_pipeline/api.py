@@ -46,6 +46,8 @@ def _json_request(
 
 def get_pending_items(cfg: AppConfig) -> list[dict[str, Any]]:
     url = f"{cfg.api_base_url}/api/pending-processing"
+    if cfg.dev_mode:
+        url += "?all=true"
     print(f"[api] fetching pending items from {url}")
     data = _json_request(url, ctx=_context(cfg))
     if data is None:
@@ -53,7 +55,8 @@ def get_pending_items(cfg: AppConfig) -> list[dict[str, Any]]:
     if not isinstance(data, list):
         print(f"[api] unexpected response shape: {type(data).__name__}")
         return []
-    print(f"[api] found {len(data)} item(s) pending processing")
+    label = "all" if cfg.dev_mode else "pending"
+    print(f"[api] found {len(data)} item(s) ({label})")
     return data
 
 

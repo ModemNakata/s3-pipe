@@ -159,6 +159,9 @@ class AppConfig:
     watermark_borderw: int = 1
     watermark_uploader_name: str = ""
 
+    # Dev mode — re-process already-ready content (set via --test CLI flag)
+    dev_mode: bool = False
+
     # ── helpers ────────────────────────────────────────────────────────
 
     @classmethod

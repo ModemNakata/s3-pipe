@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import time
+from typing import Optional
 
 from config import AppConfig
 from . import api
 from .worker import process_item
 
 
-def run() -> None:
-    cfg = AppConfig.from_env()
-    cfg.setup_mc()
+def run(cfg: Optional[AppConfig] = None) -> None:
+    if cfg is None:
+        cfg = AppConfig.from_env()
+        cfg.setup_mc()
     _print_banner(cfg)
     run_loop(cfg)
 
@@ -48,4 +50,6 @@ def _print_banner(cfg: AppConfig) -> None:
     print(f"  S3 dest bucket: {cfg.s3_bucket}")
     print(f"  Poll interval:  {cfg.poll_interval_sec}s")
     print(f"  Work dir:       {cfg.work_dir}")
+    if cfg.dev_mode:
+        print(f"  Mode:           DEV (all=true)")
     print("")

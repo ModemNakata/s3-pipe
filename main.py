@@ -24,16 +24,18 @@ def main() -> None:
     parser.add_argument("--file", "-f", metavar="S3_KEY",
                         help="S3 key in S3_ORIG_BUCKET "
                              "(default: fetched from GET /api/content/{uuid})")
+    parser.add_argument("--test", "-t", action="store_true",
+                        help="Dev mode: re-process already-ready items (sends ?all=true to API)")
     args = parser.parse_args()
 
     cfg = AppConfig.from_env()
+    cfg.dev_mode = args.test
     cfg.setup_mc()
 
     if args.uuid:
         _print_banner(cfg)
 
         if args.file:
-            # Explicit file path — no API call
             item = {
                 "content_id": args.uuid,
                 "content_type": "video",
@@ -42,7 +44,6 @@ def main() -> None:
             }
             print(f"[main] direct mode: content={args.uuid}, file={args.file}")
         else:
-            # Look up content info from API
             info = api.get_content(cfg, args.uuid)
             if info and info.get("files"):
                 item = info
@@ -55,7 +56,7 @@ def main() -> None:
 
         process_item(cfg, item)
     else:
-        run_poll_loop()
+        run_poll_loop(cfg)
 
 
 if __name__ == "__main__":
