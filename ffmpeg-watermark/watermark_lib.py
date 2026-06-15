@@ -15,18 +15,34 @@ class WatermarkConfig:
     color: str = "#7ccf00"
     x: int = 5
     y: int = 5
+    box: bool = False
+    boxcolor: str = "black@0.5"
+    boxborderw: int = 6
+    bordercolor: str = "black"
+    borderw: int = 1
+
+
+def _build_common(cfg: WatermarkConfig, textfile: str) -> list[str]:
+    parts = [
+        f"textfile={textfile}",
+        f"fontfile={cfg.font}",
+        f"fontcolor={cfg.color}",
+        f"fontsize={cfg.font_size_expr}",
+        f"x={cfg.x}",
+        f"y={cfg.y}",
+    ]
+    if cfg.box:
+        parts.append("box=1")
+        parts.append(f"boxcolor={cfg.boxcolor}")
+        parts.append(f"boxborderw={cfg.boxborderw}")
+    if cfg.borderw > 0:
+        parts.append(f"bordercolor={cfg.bordercolor}")
+        parts.append(f"borderw={cfg.borderw}")
+    return parts
 
 
 def build_drawtext_filter(cfg: WatermarkConfig, textfile: str) -> str:
-    return (
-        f"drawtext="
-        f"textfile={textfile}:"
-        f"fontfile={cfg.font}:"
-        f"fontcolor={cfg.color}:"
-        f"fontsize={cfg.font_size_expr}:"
-        f"x={cfg.x}:"
-        f"y={cfg.y}"
-    )
+    return "drawtext=" + ":".join(_build_common(cfg, textfile))
 
 
 def write_textfile(text: str) -> str:

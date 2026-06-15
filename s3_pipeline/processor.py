@@ -76,15 +76,19 @@ def _target_16x9(src_w: int, src_h: int, max_short: int) -> tuple[int, int]:
 
 
 def _build_watermark_filter(wcfg: WatermarkConfig, textfile: str) -> str:
-    return (
-        f"drawtext="
-        f"textfile={textfile}:"
-        f"fontfile={wcfg.font}:"
-        f"fontcolor={wcfg.color}:"
-        f"fontsize={wcfg.font_size_expr}:"
-        f"x={wcfg.x}:"
-        f"y={wcfg.y}"
-    )
+    parts = [
+        f"textfile={textfile}",
+        f"fontfile={wcfg.font}",
+        f"fontcolor={wcfg.color}",
+        f"fontsize={wcfg.font_size_expr}",
+        f"x={wcfg.x}",
+        f"y={wcfg.y}",
+    ]
+    if wcfg.box:
+        parts += ["box=1", f"boxcolor={wcfg.boxcolor}", f"boxborderw={wcfg.boxborderw}"]
+    if wcfg.borderw > 0:
+        parts += [f"bordercolor={wcfg.bordercolor}", f"borderw={wcfg.borderw}"]
+    return "drawtext=" + ":".join(parts)
 
 
 def _generate_thumbnail(input_path: Path, output_dir: Path,

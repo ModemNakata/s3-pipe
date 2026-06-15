@@ -43,16 +43,20 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
 
     if cfg.watermark.enabled:
         watermark_text = _write_textfile(cfg.watermark.text)
-        wt = (
-            f"drawtext="
-            f"textfile={watermark_text}:"
-            f"fontfile={cfg.watermark.font}:"
-            f"fontcolor={cfg.watermark.color}:"
-            f"fontsize={cfg.watermark.font_size_expr}:"
-            f"x={cfg.watermark.x}:"
-            f"y={cfg.watermark.y}"
-        )
-        filter_parts.append(wt)
+        w = cfg.watermark
+        wt_parts = [
+            f"textfile={watermark_text}",
+            f"fontfile={w.font}",
+            f"fontcolor={w.color}",
+            f"fontsize={w.font_size_expr}",
+            f"x={w.x}",
+            f"y={w.y}",
+        ]
+        if w.box:
+            wt_parts += ["box=1", f"boxcolor={w.boxcolor}", f"boxborderw={w.boxborderw}"]
+        if w.borderw > 0:
+            wt_parts += [f"bordercolor={w.bordercolor}", f"borderw={w.borderw}"]
+        filter_parts.append("drawtext=" + ":".join(wt_parts))
 
     wm_label = " +wm" if cfg.watermark.enabled else ""
     print(f"[transcode] {profile.name} ({actual_res})  "

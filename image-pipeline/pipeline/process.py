@@ -34,16 +34,20 @@ def run(cfg: ImageConfig) -> int:
     textfile = None
     if cfg.watermark.enabled:
         textfile = _write_textfile(cfg.watermark.text)
-        wt = (
-            f"drawtext="
-            f"textfile={textfile}:"
-            f"fontfile={cfg.watermark.font}:"
-            f"fontcolor={cfg.watermark.color}:"
-            f"fontsize={cfg.watermark.font_size_expr}:"
-            f"x={cfg.watermark.x}:"
-            f"y={cfg.watermark.y}"
-        )
-        parts.append(wt)
+        w = cfg.watermark
+        wt_parts = [
+            f"textfile={textfile}",
+            f"fontfile={w.font}",
+            f"fontcolor={w.color}",
+            f"fontsize={w.font_size_expr}",
+            f"x={w.x}",
+            f"y={w.y}",
+        ]
+        if w.box:
+            wt_parts += ["box=1", f"boxcolor={w.boxcolor}", f"boxborderw={w.boxborderw}"]
+        if w.borderw > 0:
+            wt_parts += [f"bordercolor={w.bordercolor}", f"borderw={w.borderw}"]
+        parts.append("drawtext=" + ":".join(wt_parts))
 
     filter_string = ",".join(parts) if parts else None
 
