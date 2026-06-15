@@ -15,6 +15,7 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
     content_type: str = item["content_type"]
     files: list[dict] = item.get("files", [])
     title: str = item.get("title", "")
+    uploader_name: str = item.get("uploader_name", "")
 
     workdir = cfg.work_dir / content_id
     download_dir = workdir / "download"
@@ -34,6 +35,8 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
 
         print(f"\n--- step 2/4: encode ---")
         t0 = time.time()
+
+        cfg.watermark_uploader_name = uploader_name
 
         duration = 0
 

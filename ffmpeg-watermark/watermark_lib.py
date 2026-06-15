@@ -20,6 +20,13 @@ class WatermarkConfig:
     boxborderw: int = 6
     bordercolor: str = "black"
     borderw: int = 1
+    uploader_name: str = ""
+
+
+def _watermark_text(cfg: WatermarkConfig) -> str:
+    if cfg.uploader_name:
+        return f"{cfg.text}@{cfg.uploader_name}"
+    return cfg.text
 
 
 def _build_common(cfg: WatermarkConfig, textfile: str) -> list[str]:

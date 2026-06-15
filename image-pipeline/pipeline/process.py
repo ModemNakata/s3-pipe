@@ -33,8 +33,9 @@ def run(cfg: ImageConfig) -> int:
 
     textfile = None
     if cfg.watermark.enabled:
-        textfile = _write_textfile(cfg.watermark.text)
         w = cfg.watermark
+        full_text = f"{w.text}@{w.uploader_name}" if w.uploader_name else w.text
+        textfile = _write_textfile(full_text)
         wt_parts = [
             f"textfile={textfile}",
             f"fontfile={w.font}",

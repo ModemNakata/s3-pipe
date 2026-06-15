@@ -42,8 +42,9 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
         filter_parts.append(scale_filter)
 
     if cfg.watermark.enabled:
-        watermark_text = _write_textfile(cfg.watermark.text)
         w = cfg.watermark
+        full_text = f"{w.text}@{w.uploader_name}" if w.uploader_name else w.text
+        watermark_text = _write_textfile(full_text)
         wt_parts = [
             f"textfile={watermark_text}",
             f"fontfile={w.font}",

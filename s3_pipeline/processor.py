@@ -105,7 +105,8 @@ def _generate_thumbnail(input_path: Path, output_dir: Path,
 
     textfile = None
     if wcfg.enabled:
-        textfile = _write_textfile(wcfg.text)
+        full_text = f"{wcfg.text}@{wcfg.uploader_name}" if wcfg.uploader_name else wcfg.text
+        textfile = _write_textfile(full_text)
         filter_parts.append(_build_watermark_filter(wcfg, textfile))
 
     cmd = [
@@ -139,7 +140,8 @@ def _generate_preview(input_path: Path, output_dir: Path,
 
     textfile = None
     if wcfg.enabled:
-        textfile = _write_textfile(wcfg.text)
+        full_text = f"{wcfg.text}@{wcfg.uploader_name}" if wcfg.uploader_name else wcfg.text
+        textfile = _write_textfile(full_text)
         filter_parts.append(_build_watermark_filter(wcfg, textfile))
 
     cmd = [
@@ -236,7 +238,8 @@ def _generate_image_preview(input_path: Path, output_dir: Path,
 
     textfile = None
     if wcfg.enabled:
-        textfile = _write_textfile(wcfg.text)
+        full_text = f"{wcfg.text}@{wcfg.uploader_name}" if wcfg.uploader_name else wcfg.text
+        textfile = _write_textfile(full_text)
         filter_parts.append(_build_watermark_filter(wcfg, textfile))
 
     cmd = [

@@ -27,6 +27,7 @@ class WatermarkConfig:
     boxborderw: int = 6
     bordercolor: str = "black"
     borderw: int = 1
+    uploader_name: str = ""
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -156,6 +157,7 @@ class AppConfig:
     watermark_boxborderw: int = 6
     watermark_bordercolor: str = "black"
     watermark_borderw: int = 1
+    watermark_uploader_name: str = ""
 
     # ── helpers ────────────────────────────────────────────────────────
 
@@ -219,7 +221,7 @@ class AppConfig:
 
             watermark_enabled=(env.get("WATERMARK_ENABLED", "false").lower()
                                in ("true", "1", "yes")),
-            watermark_text=env.get("WATERMARK_TEXT", "fevid.cloud/@SuperUser"),
+            watermark_text=env.get("WATERMARK_TEXT", "fevid.cloud/"),
             watermark_font=env.get("WATERMARK_FONT", ""),
             watermark_font_size_expr=env.get("WATERMARK_FONT_SIZE", "h*0.02"),
             watermark_color=env.get("WATERMARK_COLOR", "#7ccf00"),
@@ -281,6 +283,7 @@ class AppConfig:
                 boxborderw=self.watermark_boxborderw,
                 bordercolor=self.watermark_bordercolor,
                 borderw=self.watermark_borderw,
+                uploader_name=self.watermark_uploader_name,
             ),
         )
 
@@ -304,6 +307,7 @@ class AppConfig:
                 boxborderw=self.watermark_boxborderw,
                 bordercolor=self.watermark_bordercolor,
                 borderw=self.watermark_borderw,
+                uploader_name=self.watermark_uploader_name,
             ),
         )
 
