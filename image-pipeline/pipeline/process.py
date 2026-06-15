@@ -88,7 +88,7 @@ def run(cfg: ImageConfig) -> int:
 
         if _drawtext_template is not None:
             iw, ih = _probe_dimensions(str(src_path))
-            fs = calc_font_size(iw, ih, cfg.watermark.font_size)
+            fs = calc_font_size(iw, ih, cfg.watermark)
             vf_parts = list(parts)
             vf_parts.append(f"{_drawtext_template}:fontsize={fs}")
             cmd += ["-vf", ",".join(vf_parts)]
