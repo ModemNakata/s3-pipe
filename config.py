@@ -25,10 +25,7 @@ class WatermarkConfig:
     bordercolor: str = "black"
     borderw: int = 1
     uploader_name: str = ""
-    size_method: str = "shorter"
     font_ratio: float = 0.02
-    font_min: int = 16
-    font_max: int = 24
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -156,10 +153,7 @@ class AppConfig:
     watermark_bordercolor: str = "black"
     watermark_borderw: int = 1
     watermark_uploader_name: str = ""
-    watermark_size_method: str = "shorter"
     watermark_font_ratio: float = 0.02
-    watermark_font_min: int = 16
-    watermark_font_max: int = 24
 
     # Dev mode — re-process already-ready content (set via --test CLI flag)
     dev_mode: bool = False
@@ -233,10 +227,7 @@ class AppConfig:
             watermark_y=int(env.get("WATERMARK_Y", "5")),
             watermark_bordercolor=env.get("WATERMARK_BORDERCOLOR", "black"),
             watermark_borderw=int(env.get("WATERMARK_BORDERW", "1")),
-            watermark_size_method=env.get("WATERMARK_SIZE_METHOD", "shorter"),
             watermark_font_ratio=float(env.get("WATERMARK_FONT_RATIO", "0.02")),
-            watermark_font_min=int(env.get("WATERMARK_FONT_MIN", "16")),
-            watermark_font_max=int(env.get("WATERMARK_FONT_MAX", "24")),
         )
 
     @staticmethod
@@ -285,10 +276,7 @@ class AppConfig:
                 bordercolor=self.watermark_bordercolor,
                 borderw=self.watermark_borderw,
                 uploader_name=self.watermark_uploader_name,
-                size_method=self.watermark_size_method,
                 font_ratio=self.watermark_font_ratio,
-                font_min=self.watermark_font_min,
-                font_max=self.watermark_font_max,
             ),
         )
 
@@ -310,10 +298,7 @@ class AppConfig:
                 bordercolor=self.watermark_bordercolor,
                 borderw=self.watermark_borderw,
                 uploader_name=self.watermark_uploader_name,
-                size_method=self.watermark_size_method,
                 font_ratio=self.watermark_font_ratio,
-                font_min=self.watermark_font_min,
-                font_max=self.watermark_font_max,
             ),
         )
 
@@ -347,23 +332,10 @@ def calc_font_size(w: int, h: int, wm: WatermarkConfig) -> int:
         print(f"[watermark] font_size: fixed {wm.font_size}px (config override)")
         return wm.font_size
 
-    if wm.size_method == "diagonal":
-        base = int((w**2 + h**2) ** 0.5)
-        label = "diag"
-    else:
-        base = w if h > w else h
-        label = "min"
-
-    fs = int(base * wm.font_ratio)
-    raw = fs
-    if wm.font_min > 0 and wm.font_max > 0 and wm.font_min <= wm.font_max:
-        fs = max(wm.font_min, min(wm.font_max, fs))
-        clamp_info = f"clamped=[{wm.font_min}..{wm.font_max}]"
-    else:
-        clamp_info = "no-clamp"
-    print(f"[watermark] font_size: {w}x{h} "
-          f"{label}*{wm.font_ratio}={raw} "
-          f"{clamp_info} -> {fs}px")
+    diagonal = int((w**2 + h**2) ** 0.5)
+    fs = int(diagonal * wm.font_ratio)
+    print(f"[watermark] font_size: {w}x{h}  "
+          f"diag*{wm.font_ratio} = {diagonal}*{wm.font_ratio} = {fs}px")
     return fs
 
 
