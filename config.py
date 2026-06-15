@@ -18,7 +18,7 @@ class WatermarkConfig:
     enabled: bool = True
     text: str = "fevid.cloud"
     font: str = ""
-    font_size_expr: str = "h*0.02"
+    font_size: int = 0
     color: str = "#7ccf00"
     x: int = 5
     y: int = 5
@@ -148,7 +148,7 @@ class AppConfig:
     watermark_enabled: bool = False
     watermark_text: str = "fevid.cloud/@SuperUser"
     watermark_font: str = ""
-    watermark_font_size_expr: str = "h*0.02"
+    watermark_font_size: int = 0
     watermark_color: str = "#7ccf00"
     watermark_x: int = 5
     watermark_y: int = 5
@@ -226,7 +226,6 @@ class AppConfig:
                                in ("true", "1", "yes")),
             watermark_text=env.get("WATERMARK_TEXT", "fevid.cloud/"),
             watermark_font=env.get("WATERMARK_FONT", ""),
-            watermark_font_size_expr=env.get("WATERMARK_FONT_SIZE", "h*0.02"),
             watermark_color=env.get("WATERMARK_COLOR", "#7ccf00"),
             watermark_x=int(env.get("WATERMARK_X", "5")),
             watermark_y=int(env.get("WATERMARK_Y", "5")),
@@ -277,7 +276,7 @@ class AppConfig:
                 enabled=self.watermark_enabled,
                 text=self.watermark_text,
                 font=self.watermark_font,
-                font_size_expr=self.watermark_font_size_expr,
+                font_size=self.watermark_font_size,
                 color=self.watermark_color,
                 x=self.watermark_x,
                 y=self.watermark_y,
@@ -301,7 +300,7 @@ class AppConfig:
                 enabled=self.watermark_enabled,
                 text=self.watermark_text,
                 font=self.watermark_font,
-                font_size_expr=self.watermark_font_size_expr,
+                font_size=self.watermark_font_size,
                 color=self.watermark_color,
                 x=self.watermark_x,
                 y=self.watermark_y,
@@ -338,6 +337,19 @@ class AppConfig:
 # ═══════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════
+
+def calc_font_size(w: int, h: int, font_size_override: int) -> int:
+    if font_size_override > 0:
+        print(f"[watermark] font_size: fixed {font_size_override}px (config override)")
+        return font_size_override
+    ratio = 0.03 if h > w else 0.02
+    base = w if h > w else h
+    fs = int(base * ratio)
+    orientation = "portrait" if h > w else "landscape"
+    print(f"[watermark] font_size: {w}x{h} {orientation}  "
+          f"{'w' if h>w else 'h'}*{ratio} = {base}*{ratio} = {fs}px")
+    return fs
+
 
 def filter_profiles(profiles: List[Profile], source_min_dim: int) -> List[Profile]:
     return [p for p in profiles if source_min_dim >= p.threshold]

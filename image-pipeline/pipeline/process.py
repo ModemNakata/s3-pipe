@@ -6,7 +6,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from config import ImageConfig
+from config import ImageConfig, calc_font_size
 
 
 def _write_textfile(text: str) -> str:
@@ -23,6 +23,23 @@ def _cleanup_textfile(path: str) -> None:
         pass
 
 
+def _probe_dimensions(path: str) -> tuple[int, int]:
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0",
+         "-show_entries", "stream=width,height", "-of", "json", path],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return 0, 0
+    import json as _json
+    data = _json.loads(result.stdout)
+    streams = data.get("streams", [])
+    if not streams:
+        return 0, 0
+    s = streams[0]
+    return int(s.get("width", 0)), int(s.get("height", 0))
+
+
 def run(cfg: ImageConfig) -> int:
     parts = []
     if cfg.max_dimension > 0:
@@ -32,6 +49,7 @@ def run(cfg: ImageConfig) -> int:
         )
 
     textfile = None
+    _drawtext_template: str | None = None
     if cfg.watermark.enabled:
         w = cfg.watermark
         full_text = f"{w.text}@{w.uploader_name}" if w.uploader_name else w.text
@@ -40,7 +58,6 @@ def run(cfg: ImageConfig) -> int:
             f"textfile={textfile}",
             f"fontfile={w.font}",
             f"fontcolor={w.color}",
-            f"fontsize={w.font_size_expr}",
             f"x={w.x}",
             f"y={w.y}",
         ]
@@ -48,7 +65,7 @@ def run(cfg: ImageConfig) -> int:
             wt_parts += ["box=1", f"boxcolor={w.boxcolor}", f"boxborderw={w.boxborderw}"]
         if w.borderw > 0:
             wt_parts += [f"bordercolor={w.bordercolor}", f"borderw={w.borderw}"]
-        parts.append("drawtext=" + ":".join(wt_parts))
+        _drawtext_template = "drawtext=" + ":".join(wt_parts)
 
     filter_string = ",".join(parts) if parts else None
 
@@ -70,8 +87,16 @@ def run(cfg: ImageConfig) -> int:
         in_bytes = src_path.stat().st_size
 
         cmd = ["ffmpeg", "-y", "-i", str(src_path)]
-        if filter_string:
+
+        if _drawtext_template is not None:
+            iw, ih = _probe_dimensions(str(src_path))
+            fs = calc_font_size(iw, ih, cfg.watermark.font_size)
+            vf_parts = list(parts)
+            vf_parts.append(f"{_drawtext_template}:fontsize={fs}")
+            cmd += ["-vf", ",".join(vf_parts)]
+        elif filter_string:
             cmd += ["-vf", filter_string]
+
         if cfg.lossless:
             cmd += ["-lossless", "1"]
         else:

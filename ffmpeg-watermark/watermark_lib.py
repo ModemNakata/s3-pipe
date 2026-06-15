@@ -6,12 +6,15 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
+from config import calc_font_size as _calc_font_size
+
+
 @dataclass
 class WatermarkConfig:
     enabled: bool = False
     text: str = "fevid.cloud/@SuperUser"
     font: str = ""
-    font_size_expr: str = "h*0.02"
+    font_size: int = 0
     color: str = "#7ccf00"
     x: int = 5
     y: int = 5
@@ -29,12 +32,12 @@ def _watermark_text(cfg: WatermarkConfig) -> str:
     return cfg.text
 
 
-def _build_common(cfg: WatermarkConfig, textfile: str) -> list[str]:
+def _build_common(cfg: WatermarkConfig, textfile: str, font_size: int) -> list[str]:
     parts = [
         f"textfile={textfile}",
         f"fontfile={cfg.font}",
         f"fontcolor={cfg.color}",
-        f"fontsize={cfg.font_size_expr}",
+        f"fontsize={font_size}",
         f"x={cfg.x}",
         f"y={cfg.y}",
     ]
@@ -48,8 +51,8 @@ def _build_common(cfg: WatermarkConfig, textfile: str) -> list[str]:
     return parts
 
 
-def build_drawtext_filter(cfg: WatermarkConfig, textfile: str) -> str:
-    return "drawtext=" + ":".join(_build_common(cfg, textfile))
+def build_drawtext_filter(cfg: WatermarkConfig, textfile: str, font_size: int) -> str:
+    return "drawtext=" + ":".join(_build_common(cfg, textfile, font_size))
 
 
 def write_textfile(text: str) -> str:
