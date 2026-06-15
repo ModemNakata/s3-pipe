@@ -6,6 +6,7 @@ Usage:
   python main.py                          # Polling loop
   python main.py --uuid <id>              # Process one video by UUID (fetches file info from API)
   python main.py --uuid <id> --file <p>   # Process one video with explicit S3 key (no API)
+  python main.py --test                   # Single pass, re-process all items regardless of status
 """
 
 import argparse
@@ -13,7 +14,7 @@ import sys
 
 from config import AppConfig
 from s3_pipeline import api
-from s3_pipeline.runner import run as run_poll_loop, _print_banner
+from s3_pipeline.runner import run as run_poll_loop, run_once, _print_banner
 from s3_pipeline.worker import process_item
 
 
@@ -55,6 +56,8 @@ def main() -> None:
                 sys.exit(1)
 
         process_item(cfg, item)
+    elif args.test:
+        run_once(cfg)
     else:
         run_poll_loop(cfg)
 

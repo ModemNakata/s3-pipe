@@ -16,6 +16,13 @@ def run(cfg: Optional[AppConfig] = None) -> None:
     run_loop(cfg)
 
 
+def run_once(cfg: AppConfig) -> None:
+    cfg.dev_mode = True
+    items = api.get_pending_items(cfg)
+    for item in items:
+        process_item(cfg, item)
+
+
 def run_loop(cfg: AppConfig) -> None:
     while True:
         try:
