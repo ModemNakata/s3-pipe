@@ -61,8 +61,6 @@ def run(cfg: ImageConfig) -> int:
             f"x={w.x}",
             f"y={w.y}",
         ]
-        if w.box:
-            wt_parts += ["box=1", f"boxcolor={w.boxcolor}", f"boxborderw={w.boxborderw}"]
         if w.borderw > 0:
             wt_parts += [f"bordercolor={w.bordercolor}", f"borderw={w.borderw}"]
         _drawtext_template = "drawtext=" + ":".join(wt_parts)

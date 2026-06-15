@@ -22,9 +22,6 @@ class WatermarkConfig:
     color: str = "#7ccf00"
     x: int = 5
     y: int = 5
-    box: bool = False
-    boxcolor: str = "black@0.5"
-    boxborderw: int = 6
     bordercolor: str = "black"
     borderw: int = 1
     uploader_name: str = ""
@@ -152,9 +149,6 @@ class AppConfig:
     watermark_color: str = "#7ccf00"
     watermark_x: int = 5
     watermark_y: int = 5
-    watermark_box: bool = False
-    watermark_boxcolor: str = "black@0.5"
-    watermark_boxborderw: int = 6
     watermark_bordercolor: str = "black"
     watermark_borderw: int = 1
     watermark_uploader_name: str = ""
@@ -229,10 +223,6 @@ class AppConfig:
             watermark_color=env.get("WATERMARK_COLOR", "#7ccf00"),
             watermark_x=int(env.get("WATERMARK_X", "5")),
             watermark_y=int(env.get("WATERMARK_Y", "5")),
-            watermark_box=(env.get("WATERMARK_BOX", "false").lower()
-                           in ("true", "1", "yes")),
-            watermark_boxcolor=env.get("WATERMARK_BOXCOLOR", "black@0.5"),
-            watermark_boxborderw=int(env.get("WATERMARK_BOXBORDERW", "6")),
             watermark_bordercolor=env.get("WATERMARK_BORDERCOLOR", "black"),
             watermark_borderw=int(env.get("WATERMARK_BORDERW", "1")),
         )
@@ -280,9 +270,6 @@ class AppConfig:
                 color=self.watermark_color,
                 x=self.watermark_x,
                 y=self.watermark_y,
-                box=self.watermark_box,
-                boxcolor=self.watermark_boxcolor,
-                boxborderw=self.watermark_boxborderw,
                 bordercolor=self.watermark_bordercolor,
                 borderw=self.watermark_borderw,
                 uploader_name=self.watermark_uploader_name,
@@ -304,9 +291,6 @@ class AppConfig:
                 color=self.watermark_color,
                 x=self.watermark_x,
                 y=self.watermark_y,
-                box=self.watermark_box,
-                boxcolor=self.watermark_boxcolor,
-                boxborderw=self.watermark_boxborderw,
                 bordercolor=self.watermark_bordercolor,
                 borderw=self.watermark_borderw,
                 uploader_name=self.watermark_uploader_name,
