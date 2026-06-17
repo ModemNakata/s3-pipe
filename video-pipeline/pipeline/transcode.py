@@ -97,7 +97,7 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
         cmd += [param_flag, cfg.codec_params]
 
 
-    cmd += ["-c:a", "libopus", "-b:a", "96k"]
+    cmd += ["-c:a", "libopus", "-b:a", "96k"] # 128 160 320
 
     cmd += ["-hls_time", str(cfg.hls.segment_duration)]
     cmd += ["-hls_playlist_type", cfg.hls.playlist_type]
