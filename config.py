@@ -71,6 +71,9 @@ class VideoConfig:
         Profile("480p",  1200000, 854,  480,  1200),
     ])
     watermark: WatermarkConfig = field(default_factory=WatermarkConfig)
+    rate_control_enabled: bool = True
+    rate_control_maxrate: Optional[int] = None
+    rate_control_bufsize: Optional[int] = None
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -134,6 +137,11 @@ class AppConfig:
     hls_keyframe_interval: int = 60
 
     profiles: List[Profile] = field(default_factory=list)
+
+    # Rate control
+    rate_control_enabled: bool = True
+    rate_control_maxrate: Optional[int] = None
+    rate_control_bufsize: Optional[int] = None
 
     # Preview defaults
     preview_duration: int = 5
@@ -215,6 +223,10 @@ class AppConfig:
             video_cap_scale=float(env.get("VIDEO_CAP_SCALE", "0.9")),
             video_buf_factor=float(env.get("VIDEO_BUF_FACTOR", "2")),
             video_pix_fmt=env.get("VIDEO_PIX_FMT", "yuv420p"),
+            rate_control_enabled=(env.get("RATE_CONTROL_ENABLED", "true").lower()
+                                  not in ("false", "0", "no")),
+            rate_control_maxrate=int(env["RATE_CONTROL_MAXRATE"]) if "RATE_CONTROL_MAXRATE" in env else None,
+            rate_control_bufsize=int(env["RATE_CONTROL_BUFSIZE"]) if "RATE_CONTROL_BUFSIZE" in env else None,
             hls_segment_duration=int(env.get("HLS_SEGMENT_DURATION", "4")),
             hls_segment_type=env.get("HLS_SEGMENT_TYPE", "fmp4"),
             hls_playlist_type=env.get("HLS_PLAYLIST_TYPE", "vod"),
@@ -270,6 +282,9 @@ class AppConfig:
             cap_scale=self.video_cap_scale,
             buf_factor=self.video_buf_factor,
             pixel_format=self.video_pix_fmt,
+            rate_control_enabled=self.rate_control_enabled,
+            rate_control_maxrate=self.rate_control_maxrate,
+            rate_control_bufsize=self.rate_control_bufsize,
             hls=HlsConfig(
                 segment_duration=self.hls_segment_duration,
                 segment_type=self.hls_segment_type,

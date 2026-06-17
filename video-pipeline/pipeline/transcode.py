@@ -59,9 +59,17 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
             wt_parts += [f"bordercolor={w.bordercolor}", f"borderw={w.borderw}"]
         filter_parts.append("drawtext=" + ":".join(wt_parts))
 
+    actual_maxrate = cfg.rate_control_maxrate or maxrate
+    actual_bufsize = cfg.rate_control_bufsize or bufsize
+    rate_label = ""
+    if cfg.rate_control_enabled:
+        rate_label = f"  maxrate={actual_maxrate}k  bufsize={actual_bufsize}k"
+    else:
+        rate_label = "  (no rate control)"
+
     wm_label = " +wm" if cfg.watermark.enabled else ""
     log.info("transcode", f"{profile.name} ({actual_res})  "
-             f"crf={cfg.crf}  maxrate={maxrate}k  bufsize={bufsize}k"
+             f"crf={cfg.crf}{rate_label}"
              f"{'  (passthrough)' if profile.passthrough else ''}{wm_label}")
 
     playlist = os.path.join(cfg.output_dir, f"{profile.name}.m3u8")
@@ -72,8 +80,9 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
         cmd += ["-vf", ",".join(filter_parts)]
     cmd += ["-c:v", cfg.video_codec]
     cmd += ["-crf", str(cfg.crf)]
-    cmd += ["-maxrate", f"{maxrate}k"]
-    cmd += ["-bufsize", f"{bufsize}k"]
+    if cfg.rate_control_enabled:
+        cmd += ["-maxrate", f"{actual_maxrate}k"]
+        cmd += ["-bufsize", f"{actual_bufsize}k"]
     cmd += ["-preset", cfg.preset]
     cmd += ["-pix_fmt", cfg.pixel_format]
 
