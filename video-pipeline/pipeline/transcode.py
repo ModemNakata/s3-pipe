@@ -98,7 +98,7 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     cmd += ["-g", str(cfg.hls.keyframe_interval)]
     cmd += ["-sc_threshold", "0"]
 
-    cmd += ["-c:a", "aac", "-q:a", "1.0"]
+    cmd += ["-c:a", "libopus", "-b:a", "96k"]
 
     cmd += ["-hls_time", str(cfg.hls.segment_duration)]
     cmd += ["-hls_playlist_type", cfg.hls.playlist_type]
