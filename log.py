@@ -3,10 +3,24 @@ from __future__ import annotations
 import os
 import subprocess
 import time
+from pathlib import Path
 from typing import Any
 
 
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
+def _load_log_level() -> str:
+    level = os.environ.get("LOG_LEVEL")
+    if level:
+        return level.upper()
+    env_path = Path(__file__).resolve().parent / ".env"
+    if env_path.exists():
+        for line in env_path.read_text().splitlines():
+            line = line.strip()
+            if line.startswith("LOG_LEVEL="):
+                return line.split("=", 1)[1].strip().upper()
+    return "INFO"
+
+
+LOG_LEVEL = _load_log_level()
 
 
 def is_debug() -> bool:
