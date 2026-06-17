@@ -58,7 +58,6 @@ class VideoConfig:
     input_video: str = ""
     output_dir: str = ""
     video_codec: str = "libsvtav1"
-    video_codec_tag: Optional[str] = None
     codec_params: Optional[str] = "keyint=60:scd=0"
     preset: str = "6"
     pixel_format: str = "yuv420p10le"
@@ -74,7 +73,6 @@ class VideoConfig:
         Profile("480p",  1000000, 854,  480,  800,  1600, crf=34),
     ])
     watermark: WatermarkConfig = field(default_factory=WatermarkConfig)
-    rate_control_enabled: bool = True
     rate_control_maxrate: Optional[int] = None
     rate_control_bufsize: Optional[int] = None
 
@@ -117,7 +115,6 @@ class AppConfig:
 
     # Video defaults
     video_codec: str = "libsvtav1"
-    video_codec_tag: Optional[str] = None
     video_codec_params: Optional[str] = "keyint=60:scd=0"
     video_preset: str = "6"
     video_pix_fmt: str = "yuv420p10le"
@@ -130,7 +127,6 @@ class AppConfig:
     profiles: List[Profile] = field(default_factory=list)
 
     # Rate control
-    rate_control_enabled: bool = True
     rate_control_maxrate: Optional[int] = None
     rate_control_bufsize: Optional[int] = None
 
@@ -207,12 +203,9 @@ class AppConfig:
                 "PIPELINE_WORK_DIR", env.get("PIPELINE_WORK_DIR", "/tmp/pipeline-work"),
             )),
             video_codec=env.get("VIDEO_CODEC", "libsvtav1"),
-            video_codec_tag=env.get("VIDEO_CODEC_TAG") or None,
             video_codec_params=env.get("VIDEO_CODEC_PARAMS") or None,
             video_preset=env.get("VIDEO_PRESET", "6"),
             video_pix_fmt=env.get("VIDEO_PIX_FMT", "yuv420p10le"),
-            rate_control_enabled=(env.get("RATE_CONTROL_ENABLED", "true").lower()
-                                  not in ("false", "0", "no")),
             rate_control_maxrate=int(env["RATE_CONTROL_MAXRATE"]) if "RATE_CONTROL_MAXRATE" in env else None,
             rate_control_bufsize=int(env["RATE_CONTROL_BUFSIZE"]) if "RATE_CONTROL_BUFSIZE" in env else None,
             hls_segment_duration=int(env.get("HLS_SEGMENT_DURATION", "4")),
@@ -267,12 +260,10 @@ class AppConfig:
             input_video=input_video,
             output_dir=output_dir,
             video_codec=self.video_codec,
-            video_codec_tag=self.video_codec_tag,
             codec_params=self.video_codec_params,
             preset=self.video_preset,
 
             pixel_format=self.video_pix_fmt,
-            rate_control_enabled=self.rate_control_enabled,
             rate_control_maxrate=self.rate_control_maxrate,
             rate_control_bufsize=self.rate_control_bufsize,
             hls=HlsConfig(

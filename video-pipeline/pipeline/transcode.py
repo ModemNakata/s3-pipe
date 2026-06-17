@@ -61,7 +61,7 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     actual_maxrate = cfg.rate_control_maxrate or maxrate
     actual_bufsize = cfg.rate_control_bufsize or bufsize
     rate_label = ""
-    rate_control_active = cfg.rate_control_enabled and maxrate > 0
+    rate_control_active = maxrate > 0
     if rate_control_active:
         rate_label = f"  maxrate={actual_maxrate}k  bufsize={actual_bufsize}k"
     else:
@@ -86,8 +86,6 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     cmd += ["-preset", cfg.preset]
     cmd += ["-pix_fmt", cfg.pixel_format]
 
-    if cfg.video_codec_tag:
-        cmd += ["-vtag", cfg.video_codec_tag]
     if cfg.codec_params:
         if cfg.video_codec == "libsvtav1":
             param_flag = "-svtav1-params"

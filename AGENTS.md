@@ -111,7 +111,7 @@ Key config groups:
 - **Imports use `from __future__ import annotations`** in all modules.
 - **`log.py`** reads `.env` directly (not through `AppConfig`) for `LOG_LEVEL` and `STREAM_CMD_OUTPUT` — these configs are read in two places.
 - **Watermark font**: The `BpmfHuninn-Regular.ttf` font file sits at the project root. Set `WATERMARK_FONT` in `.env` to its absolute path to enable watermark text rendering.
-- **Rate control**: Each profile has hardcoded `maxrate_kbps`/`bufsize_kbps`. `RATE_CONTROL_ENABLED=false` disables entirely. `RATE_CONTROL_MAXRATE`/`RATE_CONTROL_BUFSIZE` override per-profile values. Passthrough profiles use `maxrate_kbps=0,bufsize_kbps=0` (no rate control).
+- **Rate control**: Each profile has hardcoded `maxrate_kbps`/`bufsize_kbps`. `RATE_CONTROL_MAXRATE`/`RATE_CONTROL_BUFSIZE` override per-profile values. Passthrough profiles use `maxrate_kbps=0,bufsize_kbps=0` (no rate control).
 
 ### Naming & Style
 
