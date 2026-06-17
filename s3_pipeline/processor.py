@@ -101,24 +101,6 @@ def _generate_preview(input_path: Path, output_dir: Path,
     return out
 
 
-def _generate_free_preview(input_path: Path, output_dir: Path,
-                            duration: int) -> Optional[Path]:
-    out = output_dir / "free_preview.mp4"
-    print(f"[processor] free preview: trimming first {duration}s (stream copy)")
-    cmd = [
-        "ffmpeg", "-y", "-ss", "0", "-i", str(input_path),
-        "-t", str(duration),
-        "-c", "copy",
-        str(out),
-    ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        print(f"[processor] WARNING: free preview failed:\n{proc.stderr[-300:]}")
-        return None
-    print(f"[processor] free preview: {out.name} ({out.stat().st_size / 1024:.1f} KB)")
-    return out
-
-
 def _generate_blurred_webp(input_path: Path, output_path: Path,
                             sigma: float = 20, steps: int = 3) -> Optional[Path]:
     print(f"[processor] generating blurred webp from {input_path.name} "
@@ -137,8 +119,24 @@ def _generate_blurred_webp(input_path: Path, output_path: Path,
     return output_path
 
 
+def _trim_video(input_path: Path, output_path: Path, duration: int) -> Optional[Path]:
+    print(f"[processor] trimming first {duration}s to {output_path.name}")
+    cmd = [
+        "ffmpeg", "-y", "-ss", "0", "-i", str(input_path),
+        "-t", str(duration),
+        "-c", "copy",
+        str(output_path),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(f"[processor] WARNING: trim failed:\n{proc.stderr[-300:]}")
+        return None
+    print(f"[processor] trimmed: {output_path.name} ({output_path.stat().st_size / 1024:.1f} KB)")
+    return output_path
+
+
 def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Path,
-                  free_preview_duration: int = 0) -> tuple[Path, float]:
+                  free_preview_duration: int = 0) -> tuple[Path, float, Optional[Path]]:
     output_dir = workdir / content_id / "h264_output"
     print(f"[processor] ── H264 pipeline for {content_id} ──")
     print(f"[processor] input:  {input_path}")
@@ -198,11 +196,47 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
     _generate_preview(input_path, output_dir, meta.width, meta.height,
                        cfg.preview_duration)
 
+    free_preview_output_dir: Optional[Path] = None
     if free_preview_duration > 0:
-        _generate_free_preview(input_path, output_dir, free_preview_duration)
+        print(f"[processor] ── free preview HLS (paywalled) ──")
+        trimmed = workdir / content_id / "free_preview_trimmed.mp4"
+        if _trim_video(input_path, trimmed, free_preview_duration):
+            free_preview_output_dir = workdir / content_id / "h264_free_preview"
+            fp_vcfg = cfg.build_video_config(str(trimmed), str(free_preview_output_dir))
+            fp_meta = probe.probe(fp_vcfg)
+            free_preview_output_dir.mkdir(parents=True, exist_ok=True)
+            fp_profiles = filter_profiles(fp_vcfg.profiles, fp_meta.min_dim)
+            if not fp_profiles:
+                fp_src = Profile(
+                    name=f"{fp_meta.min_dim}p",
+                    bandwidth=int(fp_meta.bitrate_bps * 1.1),
+                    ref_width=fp_meta.min_dim,
+                    threshold=fp_meta.min_dim,
+                    ceiling_kbps=fp_meta.bitrate_bps // 1000,
+                    passthrough=True,
+                )
+                fp_profiles = [fp_src]
+            else:
+                fp_highest = max(p.threshold for p in fp_profiles)
+                if fp_meta.min_dim > fp_highest:
+                    fp_src_name = f"{fp_meta.min_dim}p"
+                    fp_src = Profile(
+                        name=fp_src_name,
+                        bandwidth=int(fp_meta.bitrate_bps * 1.1),
+                        ref_width=fp_meta.min_dim,
+                        threshold=fp_meta.min_dim,
+                        ceiling_kbps=fp_meta.bitrate_bps // 1000,
+                        passthrough=True,
+                    )
+                    fp_profiles.insert(0, fp_src)
+            print(f"[processor] free preview active profiles: {[p.name for p in fp_profiles]}")
+            fp_actual: dict[str, str] = {}
+            for p in fp_profiles:
+                fp_actual[p.name] = transcode.run(fp_vcfg, p, fp_meta)
+            manifest.generate(str(free_preview_output_dir), fp_profiles, fp_actual)
 
     print(f"[processor] H264 pipeline complete for {content_id}")
-    return output_dir, meta.duration_s
+    return output_dir, meta.duration_s, free_preview_output_dir
 
 
 def _generate_image_preview(input_path: Path, output_dir: Path) -> Optional[Path]:

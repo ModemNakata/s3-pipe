@@ -52,8 +52,9 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
         if content_type == "video":
             if len(local_paths) != 1:
                 raise ValueError(f"expected 1 file for video, got {len(local_paths)}")
-            output_dir, duration = proc.process_video(cfg, local_paths[0], content_id, cfg.work_dir,
-                                                      free_preview_duration=free_preview_duration_s if is_paywalled else 0)
+            output_dir, duration, free_preview_output_dir = proc.process_video(
+                cfg, local_paths[0], content_id, cfg.work_dir,
+                free_preview_duration=free_preview_duration_s if is_paywalled else 0)
         elif content_type == "image_set":
             output_dir = proc.process_images(cfg, download_dir, content_id, cfg.work_dir,
                                              first_image=local_paths[0],
@@ -75,8 +76,9 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
             thumbnail_url = f"{s3_prefix}/thumbnail.jpg"
             preview_path = f"{s3_prefix}/preview.webm"
             processed_files = [f"{s3_prefix}/master.m3u8"]
-            if is_paywalled:
-                free_preview_path = f"{s3_prefix}/free_preview.mp4"
+            if is_paywalled and free_preview_output_dir:
+                upload.upload_video(cfg, free_preview_output_dir, f"{content_id}/free_preview")
+                free_preview_path = f"{s3_prefix}/free_preview/master.m3u8"
         else:
             upload.upload_images(cfg, output_dir, content_id)
             s3_prefix = f"galleries/{content_id}"
