@@ -5,7 +5,7 @@
 A media processing pipeline that downloads source files from S3 (MinIO), transcodes them, and uploads results back to S3 with an API status callback. Supports two content types:
 
 - **Video**: HLS (fMP4 segments) via ffmpeg + libsvtav1 (AV1), with multi-profile ABR ladder
-- **Image set**: WebP via ffmpeg's libwebp encoder
+- **Image set**: AVIF via ffmpeg's libsvtav1 encoder
 
 Used by a parent platform at `fevid.cloud` — the API at `PIPELINE_API_URL` serves pending items and receives status updates.
 
@@ -53,7 +53,7 @@ There are **no Python dependencies** beyond stdlib. External tools required: `ff
 │   ├── transcode.py              # ffmpeg → HLS segments per profile (AV1/SVT-AV1)
 │   └── manifest.py               # Generate master.m3u8
 ├── image-pipeline/pipeline/      # Image sub-pipeline (importlib-loaded at runtime)
-│   └── process.py                # ffmpeg → WebP per source image
+│   └── process.py                # ffmpeg → AVIF per source image
 ├── .env_example                  # Required config template
 ├── BpmfHuninn-Regular.ttf        # Watermark font file
 └── AGENTS.md                     # This file
@@ -85,7 +85,7 @@ main.py
 ### Content Types & Paywalled Content
 
 - **`video`**: Expects exactly 1 source file. Generates HLS output, thumbnail (JPG, 16:9 crop at 5s), preview (WebM/VP9). For paywalled videos, also generates a separate HLS free-preview subdirectory (trimmed to `free_preview_duration_s`).
-- **`image_set`**: Generates WebP from each file in the download directory. First-image preview (720px square crop). For paywalled image sets, generates blurred WebP variants (`blurred_{i}.webp`) via ffmpeg `gblur` filter for images beyond `unblurred_count`.
+- **`image_set`**: Generates AVIF from each file in the download directory. First-image preview (720px square crop). For paywalled image sets, generates blurred AVIF variants (`blurred_{i}.avif`) via ffmpeg `gblur` filter for images beyond `unblurred_count`.
 - S3 paths: `videos/{content_id}/` and `galleries/{content_id}/` respectively.
 
 ## Configuration
@@ -96,7 +96,7 @@ Key config groups:
 - **S3**: endpoint, credentials, region, buckets (origin + destination)
 - **Video**: codec (default libsvtav1), per-profile CRF, preset (6), pixel format (yuv420p10le), HLS params
 - **Profiles**: ABR ladder (1440p/1080p/720p/480p) with hardcoded bandwidth/ref_width/threshold/maxrate_kbps/bufsize_kbps per profile. Rate control toggle + optional override values.
-- **Image**: WebP quality, lossless, max dimension constraint
+- **Image**: AVIF quality (CRF mapping), lossless, max dimension constraint
 - **Watermark**: drawtext filter params, diagonal-responsive font sizing, optional font file
 - **Blur**: sigma + steps for paywalled gallery blur
 - **Logging**: LOG_LEVEL (INFO/DEBUG), STREAM_CMD_OUTPUT for live ffmpeg output
