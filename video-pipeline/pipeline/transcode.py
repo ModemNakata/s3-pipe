@@ -98,13 +98,7 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     cmd += ["-g", str(cfg.hls.keyframe_interval)]
     cmd += ["-sc_threshold", "0"]
 
-    MIN_AUDIO_KBPS = 64
-    DEFAULT_AUDIO_KBPS = 128
-    if meta.audio_bitrate_bps:
-        ab_kbps = max(MIN_AUDIO_KBPS, meta.audio_bitrate_bps // 1000)
-    else:
-        ab_kbps = DEFAULT_AUDIO_KBPS
-    cmd += ["-c:a", "aac", "-b:a", f"{ab_kbps}k"]
+    cmd += ["-c:a", "aac", "-q:a", "1.0"]
 
     cmd += ["-hls_time", str(cfg.hls.segment_duration)]
     cmd += ["-hls_playlist_type", cfg.hls.playlist_type]
