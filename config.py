@@ -58,7 +58,7 @@ class VideoConfig:
     input_video: str = ""
     output_dir: str = ""
     video_codec: str = "libsvtav1"
-    codec_params: Optional[str] = "keyint=60:scd=0"
+    codec_params: Optional[str] = "keyint=3s:scd=0"
     preset: str = "6"
     pixel_format: str = "yuv420p10le"
     hls: HlsConfig = field(default_factory=HlsConfig)
@@ -115,7 +115,7 @@ class AppConfig:
 
     # Video defaults
     video_codec: str = "libsvtav1"
-    video_codec_params: Optional[str] = "keyint=60:scd=0"
+    video_codec_params: Optional[str] = "keyint=3s:scd=0"
     video_preset: str = "6"
     video_pix_fmt: str = "yuv420p10le"
 

@@ -95,8 +95,6 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
             param_flag = "-x264-params"
         cmd += [param_flag, cfg.codec_params]
 
-    cmd += ["-g", str(cfg.hls.keyframe_interval)]
-    cmd += ["-sc_threshold", "0"]
 
     cmd += ["-c:a", "libopus", "-b:a", "96k"]
 
@@ -105,7 +103,7 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     cmd += ["-hls_segment_type", cfg.hls.segment_type]
     cmd += ["-hls_fmp4_init_filename", f"{profile.name}_init.mp4"]
     cmd += ["-hls_segment_filename", seg_pattern]
-    cmd += ["-hls_flags", "independent_segments"]
+    cmd += ["-hls_flags", "independent_segments+split_by_time"]
     cmd += ["-start_number", "0"]
     cmd.append(playlist)
 
