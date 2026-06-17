@@ -16,6 +16,9 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
     files: list[dict] = item.get("files", [])
     title: str = item.get("title", "")
     uploader_name: str = item.get("uploader_name", "")
+    is_paywalled: bool = item.get("is_paywalled", False)
+    free_preview_duration_s: int = item.get("free_preview_duration_s", 0) or 0
+    unblurred_count: int = item.get("unblurred_count", 0) or 0
 
     workdir = cfg.work_dir / content_id
     download_dir = workdir / "download"
@@ -25,6 +28,12 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
     print(f"{'='*60}")
     print(f"[worker] processing: {content_id} ({content_type})")
     print(f"[worker] title: {title}")
+    print(f"[worker] paywalled: {is_paywalled}")
+    if is_paywalled:
+        if content_type == "video":
+            print(f"[worker] free_preview_duration: {free_preview_duration_s}s")
+        elif content_type == "image_set":
+            print(f"[worker] unblurred_count: {unblurred_count}")
     print(f"[worker] files: {[f['path'].split('/')[-1] for f in files]}")
     print(f"{'='*60}")
 
@@ -43,10 +52,13 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
         if content_type == "video":
             if len(local_paths) != 1:
                 raise ValueError(f"expected 1 file for video, got {len(local_paths)}")
-            output_dir, duration = proc.process_video(cfg, local_paths[0], content_id, cfg.work_dir)
+            output_dir, duration = proc.process_video(cfg, local_paths[0], content_id, cfg.work_dir,
+                                                      free_preview_duration=free_preview_duration_s if is_paywalled else 0)
         elif content_type == "image_set":
             output_dir = proc.process_images(cfg, download_dir, content_id, cfg.work_dir,
-                                             first_image=local_paths[0])
+                                             first_image=local_paths[0],
+                                             files=files if is_paywalled else None,
+                                             unblurred_count=unblurred_count if is_paywalled else 0)
         else:
             raise ValueError(f"unknown content_type: {content_type}")
 
@@ -54,12 +66,17 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
         print(f"[worker] encoding took {elapsed:.1f}s")
 
         print(f"\n--- step 3/4: upload to S3_BUCKET ---")
+        free_preview_path = ""
+        blurred_files: list[str] = []
+
         if content_type == "video":
             upload.upload_video(cfg, output_dir, content_id)
             s3_prefix = f"videos/{content_id}"
             thumbnail_url = f"{s3_prefix}/thumbnail.jpg"
             preview_path = f"{s3_prefix}/preview.webm"
             processed_files = [f"{s3_prefix}/master.m3u8"]
+            if is_paywalled:
+                free_preview_path = f"{s3_prefix}/free_preview.mp4"
         else:
             upload.upload_images(cfg, output_dir, content_id)
             s3_prefix = f"galleries/{content_id}"
@@ -69,13 +86,20 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
                 f"galleries/{content_id}/{f['path'].split('/')[-1].rsplit('.', 1)[0]}.webp"
                 for f in files
             ]
+            if is_paywalled:
+                blurred_files = [
+                    f"galleries/{content_id}/blurred_{i}.webp" if i >= unblurred_count else ""
+                    for i in range(len(files))
+                ]
 
         print(f"\n--- step 4/4: mark as ready ---")
         ok = api.mark_ready(cfg, content_id,
                             thumbnail_url=thumbnail_url,
                             preview_path=preview_path,
                             duration=duration,
-                            processed_files=processed_files)
+                            processed_files=processed_files,
+                            free_preview_path=free_preview_path,
+                            blurred_files=blurred_files if is_paywalled else None)
         if not ok:
             print(f"[worker] WARNING: API returned error for mark_ready, "
                   f"content may remain in 'processing' state")

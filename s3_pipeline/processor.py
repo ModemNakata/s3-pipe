@@ -101,7 +101,45 @@ def _generate_preview(input_path: Path, output_dir: Path,
     return out
 
 
-def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Path) -> tuple[Path, float]:
+def _generate_free_preview(input_path: Path, output_dir: Path,
+                            src_w: int, src_h: int,
+                            duration: int) -> Optional[Path]:
+    tw, th = _target_16x9(src_w, src_h, 360)
+    out = output_dir / "free_preview.mp4"
+    print(f"[processor] free preview target: {tw}x{th}, duration: {duration}s")
+    cmd = [
+        "ffmpeg", "-y", "-ss", "0", "-i", str(input_path),
+        "-t", str(duration), "-an",
+        "-vf", f"scale={tw}:{th}:force_original_aspect_ratio=increase,crop={tw}:{th}",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "28",
+        str(out),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(f"[processor] WARNING: free preview failed:\n{proc.stderr[-300:]}")
+        return None
+    print(f"[processor] free preview: {out.name} ({out.stat().st_size / 1024:.1f} KB)")
+    return out
+
+
+def _generate_blurred_webp(input_path: Path, output_path: Path) -> Optional[Path]:
+    print(f"[processor] generating blurred webp from {input_path.name}")
+    cmd = [
+        "ffmpeg", "-y", "-i", str(input_path),
+        "-vf", "gblur=sigma=20:steps=3",
+        "-c:v", "libwebp", "-quality", "50",
+        str(output_path),
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(f"[processor] WARNING: blurred webp failed:\n{proc.stderr[-300:]}")
+        return None
+    print(f"[processor] blurred webp: {output_path.name} ({output_path.stat().st_size / 1024:.1f} KB)")
+    return output_path
+
+
+def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Path,
+                  free_preview_duration: int = 0) -> tuple[Path, float]:
     output_dir = workdir / content_id / "h264_output"
     print(f"[processor] ── H264 pipeline for {content_id} ──")
     print(f"[processor] input:  {input_path}")
@@ -161,6 +199,10 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
     _generate_preview(input_path, output_dir, meta.width, meta.height,
                        cfg.preview_duration)
 
+    if free_preview_duration > 0:
+        _generate_free_preview(input_path, output_dir, meta.width, meta.height,
+                                free_preview_duration)
+
     print(f"[processor] H264 pipeline complete for {content_id}")
     return output_dir, meta.duration_s
 
@@ -184,7 +226,9 @@ def _generate_image_preview(input_path: Path, output_dir: Path) -> Optional[Path
 
 
 def process_images(cfg: AppConfig, download_dir: Path, content_id: str,
-                   workdir: Path, first_image: Optional[Path] = None) -> Path:
+                   workdir: Path, first_image: Optional[Path] = None,
+                   files: Optional[list[dict]] = None,
+                   unblurred_count: int = 0) -> Path:
     output_dir = workdir / content_id / "webp_output"
     print(f"[processor] ── WebP pipeline for {content_id} ──")
     print(f"[processor] input:  {download_dir}")
@@ -202,6 +246,14 @@ def process_images(cfg: AppConfig, download_dir: Path, content_id: str,
 
     if first_image is not None and first_image.exists():
         _generate_image_preview(first_image, output_dir)
+
+    if files and unblurred_count > 0:
+        for i, f in enumerate(files):
+            if i >= unblurred_count:
+                local_src = download_dir / f["path"].split("/")[-1]
+                if local_src.exists():
+                    blurred_name = f"blurred_{i}.webp"
+                    _generate_blurred_webp(local_src, output_dir / blurred_name)
 
     print(f"[processor] WebP pipeline complete for {content_id}")
     return output_dir
