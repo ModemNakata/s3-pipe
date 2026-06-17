@@ -94,8 +94,8 @@ All config is via `.env` file (loaded in `AppConfig.from_env()`). Environment va
 
 Key config groups:
 - **S3**: endpoint, credentials, region, buckets (origin + destination)
-- **Video**: codec, CRF, preset, pixel format, HLS params, rate control toggle/overrides
-- **Profiles**: ABR ladder (1440p/1080p/720p/480p) with bandwidth/ref_width/threshold/maxrate/bufsize
+- **Video**: codec, CRF (default 18), preset, pixel format, HLS params
+- **Profiles**: ABR ladder (1440p/1080p/720p/480p) with hardcoded bandwidth/ref_width/threshold/maxrate_kbps/bufsize_kbps per profile. Rate control toggle + optional override values.
 - **Image**: WebP quality, lossless, max dimension constraint
 - **Watermark**: drawtext filter params, diagonal-responsive font sizing, optional font file
 - **Blur**: sigma + steps for paywalled gallery blur
@@ -105,15 +105,13 @@ Key config groups:
 
 ### Gotchas
 
-- **Profile dataclass has mismatched fields**: The `Profile` dataclass requires `maxrate_kbps` and `bufsize_kbps` as constructor args, but code in `processor.py` constructs them without these fields (using `ceiling_kbps` which doesn't exist on the dataclass). The `transcode.py` also accesses `profile.ceiling_kbps`. This is a known work-in-progress refactoring state — the defaults in `_load_profiles()` also omit `bufsize_kbps`. Pyright reports several type errors for this.
-- **`_load_profiles()` hardcodes maxrate defaults**: The fallback profiles in lines 269-273 pass only 5 args (name, bandwidth, ref_width, threshold, maxrate_kbps) but miss `bufsize_kbps`. These are treated as positional matching old signature before `maxrate_kbps` and `bufsize_kbps` fields were added.
 - **`download.py` calls `sys.exit(1)`** on error instead of raising. This kills the entire process, not just the current item.
 - **No retry logic**: The poll loop catches exceptions broadly and retries, but individual item failures within `process_item` go through a try/except that marks the content as failed via API then continues.
 - **Work dir cleanup**: `shutil.rmtree(workdir)` runs in `finally` block of `process_item()` — log.debug shows size before deletion. If something goes wrong, the workdir is removed regardless.
 - **Imports use `from __future__ import annotations`** in all modules.
 - **`log.py`** reads `.env` directly (not through `AppConfig`) for `LOG_LEVEL` and `STREAM_CMD_OUTPUT` — these configs are read in two places.
 - **Watermark font**: The `BpmfHuninn-Regular.ttf` font file sits at the project root. Set `WATERMARK_FONT` in `.env` to its absolute path to enable watermark text rendering.
-- **Rate control toggle**: `RATE_CONTROL_ENABLED=false` disables `-maxrate`/`-bufsize` entirely in ffmpeg. `RATE_CONTROL_MAXRATE`/`RATE_CONTROL_BUFSIZE` override per-profile calculations.
+- **Rate control**: Each profile has hardcoded `maxrate_kbps`/`bufsize_kbps`. `RATE_CONTROL_ENABLED=false` disables entirely. `RATE_CONTROL_MAXRATE`/`RATE_CONTROL_BUFSIZE` override per-profile values. Passthrough profiles use `maxrate_kbps=0,bufsize_kbps=0` (no rate control).
 
 ### Naming & Style
 
