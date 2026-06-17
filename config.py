@@ -142,6 +142,10 @@ class AppConfig:
     image_lossless: bool = False
     image_max_dimension: int = 0
 
+    # Blur defaults (paywalled gallery images)
+    blur_sigma: float = 20.0
+    blur_steps: int = 3
+
     # Watermark defaults
     watermark_enabled: bool = False
     watermark_text: str = "fevid.cloud/@SuperUser"
@@ -217,6 +221,9 @@ class AppConfig:
             image_lossless=(env.get("WEBP_LOSSLESS", "false").lower()
                             in ("true", "1", "yes")),
             image_max_dimension=int(env.get("WEBP_MAX_DIMENSION", "0")),
+
+            blur_sigma=float(env.get("BLUR_SIGMA", "20")),
+            blur_steps=int(env.get("BLUR_STEPS", "3")),
 
             watermark_enabled=(env.get("WATERMARK_ENABLED", "false").lower()
                                in ("true", "1", "yes")),
