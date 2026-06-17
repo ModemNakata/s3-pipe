@@ -75,7 +75,8 @@ def mark_ready(cfg: AppConfig, content_id: str,
                duration: float = 0,
                processed_files: Optional[list[str]] = None,
                free_preview_path: str = "",
-               blurred_files: Optional[list[str]] = None) -> bool:
+               blurred_files: Optional[list[str]] = None,
+               source_quality: str = "") -> bool:
     body: dict[str, Any] = {"status": "ready"}
     if thumbnail_url:
         body["thumbnail_url"] = thumbnail_url
@@ -89,6 +90,8 @@ def mark_ready(cfg: AppConfig, content_id: str,
         body["free_preview_path"] = free_preview_path
     if blurred_files:
         body["blurred_files"] = blurred_files
+    if source_quality:
+        body["source_quality"] = source_quality
     return _patch(cfg, content_id, body)
 
 

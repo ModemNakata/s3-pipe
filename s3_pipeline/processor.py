@@ -135,8 +135,15 @@ def _trim_video(input_path: Path, output_path: Path, duration: int) -> Optional[
     return output_path
 
 
+def _source_quality(min_dim: int, fps: float) -> str:
+    if min_dim >= 2160:
+        return "4K"
+    suffix = "60" if fps >= 50 else ""
+    return f"{min_dim}p{suffix}"
+
+
 def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Path,
-                  free_preview_duration: int = 0) -> tuple[Path, float, Optional[Path]]:
+                  free_preview_duration: int = 0) -> tuple[Path, float, Optional[Path], str]:
     output_dir = workdir / content_id / "h264_output"
     print(f"[processor] ── H264 pipeline for {content_id} ──")
     print(f"[processor] input:  {input_path}")
@@ -235,8 +242,10 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
                 fp_actual[p.name] = transcode.run(fp_vcfg, p, fp_meta)
             manifest.generate(str(free_preview_output_dir), fp_profiles, fp_actual)
 
+    sq = _source_quality(meta.min_dim, meta.fps)
+    print(f"[processor] source quality: {sq}")
     print(f"[processor] H264 pipeline complete for {content_id}")
-    return output_dir, meta.duration_s, free_preview_output_dir
+    return output_dir, meta.duration_s, free_preview_output_dir, sq
 
 
 def _generate_image_preview(input_path: Path, output_dir: Path) -> Optional[Path]:

@@ -48,11 +48,12 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
         cfg.watermark_uploader_name = uploader_name
 
         duration = 0
+        source_quality = ""
 
         if content_type == "video":
             if len(local_paths) != 1:
                 raise ValueError(f"expected 1 file for video, got {len(local_paths)}")
-            output_dir, duration, free_preview_output_dir = proc.process_video(
+            output_dir, duration, free_preview_output_dir, source_quality = proc.process_video(
                 cfg, local_paths[0], content_id, cfg.work_dir,
                 free_preview_duration=free_preview_duration_s if is_paywalled else 0)
         elif content_type == "image_set":
@@ -101,7 +102,8 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
                             duration=duration,
                             processed_files=processed_files,
                             free_preview_path=free_preview_path,
-                            blurred_files=blurred_files if is_paywalled else None)
+                            blurred_files=blurred_files if is_paywalled else None,
+                            source_quality=source_quality)
         if not ok:
             print(f"[worker] WARNING: API returned error for mark_ready, "
                   f"content may remain in 'processing' state")
