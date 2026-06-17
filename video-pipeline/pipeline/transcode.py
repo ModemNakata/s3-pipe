@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
+import log
 from config import VideoConfig, Profile, calc_maxrate, calc_bufsize, build_scale, calc_font_size
 from pipeline.probe import VideoMeta
 
@@ -60,9 +60,9 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
         filter_parts.append("drawtext=" + ":".join(wt_parts))
 
     wm_label = " +wm" if cfg.watermark.enabled else ""
-    print(f"[transcode] {profile.name} ({actual_res})  "
-          f"crf={cfg.crf}  maxrate={maxrate}k  bufsize={bufsize}k"
-          f"{'  (passthrough)' if profile.passthrough else ''}{wm_label}")
+    log.info("transcode", f"{profile.name} ({actual_res})  "
+             f"crf={cfg.crf}  maxrate={maxrate}k  bufsize={bufsize}k"
+             f"{'  (passthrough)' if profile.passthrough else ''}{wm_label}")
 
     playlist = os.path.join(cfg.output_dir, f"{profile.name}.m3u8")
     seg_pattern = os.path.join(cfg.output_dir, f"{profile.name}_%03d.m4s")
@@ -103,10 +103,10 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     cmd += ["-start_number", "0"]
     cmd.append(playlist)
 
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = log.run_cmd(cmd, module="transcode")
     _cleanup_textfiles()
     if proc.returncode != 0:
-        print(f"[transcode] ERROR: {profile.name} failed:\n{proc.stderr[-500:]}")
+        log.info("transcode", f"ERROR: {profile.name} failed:\n{proc.stderr[-500:]}")
         sys.exit(1)
 
     segs = list(Path(cfg.output_dir).glob(f"{profile.name}_*.m4s"))
@@ -120,8 +120,8 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     reduction_pct = (reduction_bytes / meta.source_size_bytes * 100) if meta.source_size_bytes > 0 else 0
     sign = "-" if reduction_bytes >= 0 else "+"
 
-    print(f"[transcode] {profile.name}: {len(segs)} segments, {total_mb:.1f} MB"
-          f"  ({sign}{abs(reduction_bytes) / (1024*1024):.1f} MB,"
-          f" {sign}{abs(reduction_pct):.1f}%)")
+    log.info("transcode", f"{profile.name}: {len(segs)} segments, {total_mb:.1f} MB"
+             f"  ({sign}{abs(reduction_bytes) / (1024*1024):.1f} MB,"
+             f" {sign}{abs(reduction_pct):.1f}%)")
 
     return actual_res

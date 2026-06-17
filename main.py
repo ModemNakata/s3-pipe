@@ -12,6 +12,7 @@ Usage:
 import argparse
 import sys
 
+import log
 from config import AppConfig
 from s3_pipeline import api
 from s3_pipeline.runner import run as run_poll_loop, run_once, _print_banner
@@ -31,6 +32,9 @@ def main() -> None:
 
     cfg = AppConfig.from_env()
     cfg.dev_mode = args.test
+    log.debug("main", f"log_level={cfg.log_level}")
+    log.debug("main", f"config: work_dir={cfg.work_dir}, api={cfg.api_base_url}, "
+              f"s3_endpoint={cfg.s3_endpoint}, bucket={cfg.s3_bucket}")
     cfg.setup_mc()
 
     if args.uuid:

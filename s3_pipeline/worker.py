@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 import shutil
 import time
 import traceback
 from pathlib import Path
 from typing import Any
 
+import log
 from config import AppConfig
 from . import api, download, processor as proc, upload
 
@@ -35,6 +37,9 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
         elif content_type == "image_set":
             print(f"[worker] unblurred_count: {unblurred_count}")
     print(f"[worker] files: {[f['path'].split('/')[-1] for f in files]}")
+    log.debug("worker", f"full item:\n{json.dumps(item, indent=2, default=str)}")
+    log.debug("worker", f"workdir: {workdir}")
+    log.debug("worker", f"download_dir: {download_dir}")
     print(f"{'='*60}")
 
     try:
@@ -66,6 +71,7 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
 
         elapsed = time.time() - t0
         print(f"[worker] encoding took {elapsed:.1f}s")
+        log.debug("worker", f"encoding completed in {elapsed:.3f}s")
 
         print(f"\n--- step 3/4: upload to S3_BUCKET ---")
         free_preview_path = ""
@@ -121,6 +127,7 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
 
     finally:
         if workdir.exists():
+            log.debug("worker", f"cleaning up {workdir} (size before: {sum(f.stat().st_size for f in workdir.rglob('*') if f.is_file()) / (1024*1024):.1f} MB)")
             print(f"[worker] cleaning up {workdir}")
             shutil.rmtree(workdir)
 

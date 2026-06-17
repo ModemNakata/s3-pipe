@@ -7,6 +7,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Optional
 
+import log
 from config import AppConfig
 
 
@@ -33,7 +34,9 @@ def _json_request(
         req.add_header(k, v)
 
     try:
+        log.debug("api", f"{method} {url} body={json.dumps(body) if body else 'None'}")
         with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+            log.debug("api", f"response status={resp.status}")
             return json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
         body_text = e.read().decode(errors="replace")

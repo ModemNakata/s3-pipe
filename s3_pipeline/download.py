@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 
+import log
 from config import AppConfig
 
 
@@ -11,13 +11,13 @@ def download_file(cfg: AppConfig, s3_key: str, local_path: Path) -> Path:
     local_path.parent.mkdir(parents=True, exist_ok=True)
     src = f"{cfg.orig_bucket_path}/{s3_key}"
 
-    print(f"[download] mc cp {src} -> {local_path}")
-    proc = subprocess.run(
+    log.info("download", f"mc cp {src} -> {local_path}")
+    proc = log.run_cmd(
         ["mc", "cp", src, str(local_path)],
-        capture_output=True, text=True,
+        module="download",
     )
     if proc.returncode != 0:
-        print(f"[download] ERROR:\n{proc.stderr}")
+        log.info("download", f"ERROR:\n{proc.stderr}")
         sys.exit(1)
 
     size = local_path.stat().st_size

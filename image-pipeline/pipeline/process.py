@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
+import log
 from config import ImageConfig, calc_font_size
 
 
@@ -24,10 +24,10 @@ def _cleanup_textfile(path: str) -> None:
 
 
 def _probe_dimensions(path: str) -> tuple[int, int]:
-    result = subprocess.run(
+    result = log.run_cmd(
         ["ffprobe", "-v", "error", "-select_streams", "v:0",
          "-show_entries", "stream=width,height", "-of", "json", path],
-        capture_output=True, text=True,
+        module="process",
     )
     if result.returncode != 0:
         return 0, 0
@@ -67,8 +67,7 @@ def run(cfg: ImageConfig) -> int:
 
     filter_string = ",".join(parts) if parts else None
 
-    wm_label = " +wm" if cfg.watermark.enabled else ""
-    print(f"[process] watermark={'on' if cfg.watermark.enabled else 'off'}")
+    log.info("process", f"watermark={'on' if cfg.watermark.enabled else 'off'}")
 
     total_in = 0
     total_out = 0
@@ -101,9 +100,9 @@ def run(cfg: ImageConfig) -> int:
             cmd += ["-quality", str(cfg.quality)]
         cmd += ["-c:v", "libwebp", out_path]
 
-        proc = subprocess.run(cmd, capture_output=True, text=True)
+        proc = log.run_cmd(cmd, module="process")
         if proc.returncode != 0:
-            print(f"[process] SKIP: {src_path.name} is not a supported image format")
+            log.info("process", f"SKIP: {src_path.name} is not a supported image format")
             skipped += 1
             continue
 
@@ -112,19 +111,19 @@ def run(cfg: ImageConfig) -> int:
         total_out += out_bytes
         count += 1
         reduction = (1 - out_bytes / in_bytes) * 100 if in_bytes > 0 else 0
-        print(f"[process] {src_path.name} -> {out_name}  "
-              f"{in_bytes / 1024:.1f}K -> {out_bytes / 1024:.1f}K  ({reduction:.1f}%)")
+        log.info("process", f"{src_path.name} -> {out_name}  "
+                 f"{in_bytes / 1024:.1f}K -> {out_bytes / 1024:.1f}K  ({reduction:.1f}%)")
 
     if textfile is not None:
         _cleanup_textfile(textfile)
 
     if count == 0:
-        print(f"[process] ERROR: no convertible image files found in '{cfg.input_dir}'")
+        log.info("process", f"ERROR: no convertible image files found in '{cfg.input_dir}'")
         sys.exit(1)
 
     skip_msg = f", {skipped} skipped" if skipped else ""
-    print(f"[process] converted {count} image(s): "
-          f"{total_in / (1024*1024):.1f} MB -> {total_out / (1024*1024):.1f} MB "
-          f"({(1 - total_out / total_in) * 100:.1f}% reduction{skip_msg})")
+    log.info("process", f"converted {count} image(s): "
+             f"{total_in / (1024*1024):.1f} MB -> {total_out / (1024*1024):.1f} MB "
+             f"({(1 - total_out / total_in) * 100:.1f}% reduction{skip_msg})")
 
     return count

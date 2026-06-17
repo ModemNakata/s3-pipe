@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from dataclasses import dataclass
 
+import log
 from config import VideoConfig
 
 
@@ -44,9 +44,9 @@ def probe(cfg: VideoConfig) -> VideoMeta:
         "-of", "json",
         cfg.input_video,
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = log.run_cmd(cmd, module="probe")
     if proc.returncode != 0:
-        print(f"[probe] ffprobe failed:\n{proc.stderr}")
+        log.info("probe", f"ffprobe failed:\n{proc.stderr}")
         sys.exit(1)
 
     try:
@@ -74,7 +74,7 @@ def probe(cfg: VideoConfig) -> VideoMeta:
         "-of", "json",
         cfg.input_video,
     ]
-    ap = subprocess.run(acmd, capture_output=True, text=True)
+    ap = log.run_cmd(acmd, module="probe")
     if ap.returncode == 0:
         try:
             adata = json.loads(ap.stdout)
@@ -94,9 +94,9 @@ def probe(cfg: VideoConfig) -> VideoMeta:
         audio_bitrate_bps=audio_br, audio_codec=audio_codec,
         source_size_bytes=source_bytes,
     )
-    print(f"[probe] {meta.width}x{meta.height} ({meta.min_dim}p)  {meta.codec}"
-          f"  {meta.bitrate_bps // 1000} kbps  {meta.fps:.2f} fps"
-          f"  {meta.duration_s:.1f}s"
-          f"  audio: {meta.audio_codec} {meta.audio_bitrate_bps // 1000}k"
-          f"  source: {meta.source_size_mb:.1f} MB")
+    log.info("probe", f"{meta.width}x{meta.height} ({meta.min_dim}p)  {meta.codec}"
+             f"  {meta.bitrate_bps // 1000} kbps  {meta.fps:.2f} fps"
+             f"  {meta.duration_s:.1f}s"
+             f"  audio: {meta.audio_codec} {meta.audio_bitrate_bps // 1000}k"
+             f"  source: {meta.source_size_mb:.1f} MB")
     return meta

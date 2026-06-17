@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Optional
 
+import log
 from config import AppConfig, Profile, filter_profiles
 from deps import check_video, check_image
 
@@ -63,7 +63,7 @@ def _generate_thumbnail(input_path: Path, output_dir: Path,
                          src_w: int, src_h: int) -> Optional[Path]:
     tw, th = _target_16x9(src_w, src_h, 720)
     out = output_dir / "thumbnail.jpg"
-    print(f"[processor] thumbnail target: {tw}x{th}")
+    log.info("processor", f"thumbnail target: {tw}x{th}")
     cmd = [
         "ffmpeg", "-y", "-i", str(input_path),
         "-ss", "00:00:05",
@@ -72,11 +72,11 @@ def _generate_thumbnail(input_path: Path, output_dir: Path,
                f"crop={tw}:{th}",
         str(out),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = log.run_cmd(cmd, module="processor")
     if proc.returncode != 0:
-        print(f"[processor] WARNING: thumbnail failed:\n{proc.stderr[-300:]}")
+        log.info("processor", f"WARNING: thumbnail failed:\n{proc.stderr[-300:]}")
         return None
-    print(f"[processor] thumbnail: {out.name} ({out.stat().st_size / 1024:.1f} KB)")
+    log.info("processor", f"thumbnail: {out.name} ({out.stat().st_size / 1024:.1f} KB)")
     return out
 
 
@@ -85,7 +85,7 @@ def _generate_preview(input_path: Path, output_dir: Path,
                        duration: int) -> Optional[Path]:
     tw, th = _target_16x9(src_w, src_h, 360)
     out = output_dir / "preview.webm"
-    print(f"[processor] preview target: {tw}x{th}")
+    log.info("processor", f"preview target: {tw}x{th}")
     cmd = [
         "ffmpeg", "-y", "-ss", "0", "-i", str(input_path),
         "-t", str(duration), "-an",
@@ -93,45 +93,45 @@ def _generate_preview(input_path: Path, output_dir: Path,
         "-c:v", "libvpx-vp9", "-b:v", "500k",
         str(out),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = log.run_cmd(cmd, module="processor")
     if proc.returncode != 0:
-        print(f"[processor] WARNING: preview failed:\n{proc.stderr[-300:]}")
+        log.info("processor", f"WARNING: preview failed:\n{proc.stderr[-300:]}")
         return None
-    print(f"[processor] preview: {out.name} ({out.stat().st_size / 1024:.1f} KB)")
+    log.info("processor", f"preview: {out.name} ({out.stat().st_size / 1024:.1f} KB)")
     return out
 
 
 def _generate_blurred_webp(input_path: Path, output_path: Path,
                             sigma: float = 20, steps: int = 3) -> Optional[Path]:
-    print(f"[processor] generating blurred webp from {input_path.name} "
-          f"(sigma={sigma}, steps={steps})")
+    log.info("processor", f"generating blurred webp from {input_path.name} "
+             f"(sigma={sigma}, steps={steps})")
     cmd = [
         "ffmpeg", "-y", "-i", str(input_path),
         "-vf", f"gblur=sigma={sigma}:steps={steps}",
         "-c:v", "libwebp", "-quality", "50",
         str(output_path),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = log.run_cmd(cmd, module="processor")
     if proc.returncode != 0:
-        print(f"[processor] WARNING: blurred webp failed:\n{proc.stderr[-300:]}")
+        log.info("processor", f"WARNING: blurred webp failed:\n{proc.stderr[-300:]}")
         return None
-    print(f"[processor] blurred webp: {output_path.name} ({output_path.stat().st_size / 1024:.1f} KB)")
+    log.info("processor", f"blurred webp: {output_path.name} ({output_path.stat().st_size / 1024:.1f} KB)")
     return output_path
 
 
 def _trim_video(input_path: Path, output_path: Path, duration: int) -> Optional[Path]:
-    print(f"[processor] trimming first {duration}s to {output_path.name}")
+    log.info("processor", f"trimming first {duration}s to {output_path.name}")
     cmd = [
         "ffmpeg", "-y", "-ss", "0", "-i", str(input_path),
         "-t", str(duration),
         "-c", "copy",
         str(output_path),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = log.run_cmd(cmd, module="processor")
     if proc.returncode != 0:
-        print(f"[processor] WARNING: trim failed:\n{proc.stderr[-300:]}")
+        log.info("processor", f"WARNING: trim failed:\n{proc.stderr[-300:]}")
         return None
-    print(f"[processor] trimmed: {output_path.name} ({output_path.stat().st_size / 1024:.1f} KB)")
+    log.info("processor", f"trimmed: {output_path.name} ({output_path.stat().st_size / 1024:.1f} KB)")
     return output_path
 
 
@@ -250,7 +250,7 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
 
 def _generate_image_preview(input_path: Path, output_dir: Path) -> Optional[Path]:
     out = output_dir / "preview.webp"
-    print(f"[processor] generating image preview square from {input_path.name}")
+    log.info("processor", f"generating image preview square from {input_path.name}")
     cmd = [
         "ffmpeg", "-y", "-i", str(input_path),
         "-vf", "crop='min(iw,ih)':'min(iw,ih)',"
@@ -258,11 +258,11 @@ def _generate_image_preview(input_path: Path, output_dir: Path) -> Optional[Path
         "-c:v", "libwebp", "-quality", "100",
         str(out),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = log.run_cmd(cmd, module="processor")
     if proc.returncode != 0:
-        print(f"[processor] WARNING: image preview failed:\n{proc.stderr[-300:]}")
+        log.info("processor", f"WARNING: image preview failed:\n{proc.stderr[-300:]}")
         return None
-    print(f"[processor] image preview: {out.name} ({out.stat().st_size / 1024:.1f} KB)")
+    log.info("processor", f"image preview: {out.name} ({out.stat().st_size / 1024:.1f} KB)")
     return out
 
 

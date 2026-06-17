@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from typing import Optional
 
+import log
 from config import AppConfig
 from . import api
 from .worker import process_item
@@ -28,10 +29,12 @@ def run_loop(cfg: AppConfig) -> None:
         try:
             items = api.get_pending_items(cfg)
             if not items:
+                log.debug("runner", "no pending items, entering sleep")
                 print(f"[runner] no pending items, sleeping {cfg.poll_interval_sec}s")
                 time.sleep(cfg.poll_interval_sec)
                 continue
 
+            log.debug("runner", f"processing {len(items)} pending item(s)")
             for item in items:
                 process_item(cfg, item)
 

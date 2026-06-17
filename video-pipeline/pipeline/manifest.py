@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 
+import log
 from config import Profile
 
 
@@ -19,5 +20,5 @@ def generate(output_dir: str, profiles: list[Profile],
     path = os.path.join(output_dir, "master.m3u8")
     with open(path, "w") as f:
         f.write(content)
-    print(f"[manifest] written: {path}")
+    log.info("manifest", f"written: {path}")
     return path

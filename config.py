@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple
+
+import log
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -159,6 +160,9 @@ class AppConfig:
     watermark_uploader_name: str = ""
     watermark_font_ratio: float = 0.02
 
+    # Log level: INFO (default) or DEBUG
+    log_level: str = "INFO"
+
     # Dev mode — re-process already-ready content (set via --test CLI flag)
     dev_mode: bool = False
 
@@ -168,7 +172,7 @@ class AppConfig:
     def from_env(cls) -> AppConfig:
         env_path = Path(__file__).resolve().parent / ".env"
         if not env_path.exists():
-            print("[config] ERROR: .env not found at", env_path)
+            log.info("config", f"ERROR: .env not found at {env_path}")
             sys.exit(1)
 
         env: dict[str, str] = {}
@@ -215,6 +219,7 @@ class AppConfig:
             hls_segment_type=env.get("HLS_SEGMENT_TYPE", "fmp4"),
             hls_playlist_type=env.get("HLS_PLAYLIST_TYPE", "vod"),
             hls_keyframe_interval=int(env.get("HLS_KEYFRAME_INTERVAL", "60")),
+            log_level=os.environ.get("LOG_LEVEL", env.get("LOG_LEVEL", "INFO")).upper(),
             profiles=profiles,
             preview_duration=int(env.get("PREVIEW_DURATION", "5")),
             image_quality=int(env.get("WEBP_QUALITY", "100")),
@@ -250,7 +255,7 @@ class AppConfig:
             data = json.loads(raw)
             return [Profile(**d) for d in data]
         except (json.JSONDecodeError, TypeError, KeyError) as e:
-            print(f"[config] WARNING: invalid VIDEO_PROFILES JSON ({e}), using defaults")
+            log.info("config", f"WARNING: invalid VIDEO_PROFILES JSON ({e}), using defaults")
             return []
 
     def build_video_config(self, input_video: str, output_dir: str) -> VideoConfig:
@@ -310,16 +315,16 @@ class AppConfig:
         )
 
     def setup_mc(self) -> None:
-        print(f"[config] configuring mc alias '{self.mc_alias}' -> {self.s3_endpoint}")
-        proc = subprocess.run(
+        log.info("config", f"configuring mc alias '{self.mc_alias}' -> {self.s3_endpoint}")
+        proc = log.run_cmd(
             ["mc", "alias", "set", self.mc_alias,
              self.s3_endpoint, self.s3_access_key, self.s3_secret_key],
-            capture_output=True, text=True,
+            module="config",
         )
         if proc.returncode != 0:
-            print(f"[config] ERROR setting mc alias:\n{proc.stderr}")
+            log.info("config", f"ERROR setting mc alias:\n{proc.stderr}")
             sys.exit(1)
-        print(f"[config] mc alias '{self.mc_alias}' ready")
+        log.info("config", f"mc alias '{self.mc_alias}' ready")
 
     @property
     def orig_bucket_path(self) -> str:
@@ -336,13 +341,13 @@ class AppConfig:
 
 def calc_font_size(w: int, h: int, wm: WatermarkConfig) -> int:
     if wm.font_size > 0:
-        print(f"[watermark] font_size: fixed {wm.font_size}px (config override)")
+        log.info("watermark", f"font_size: fixed {wm.font_size}px (config override)")
         return wm.font_size
 
     diagonal = int((w**2 + h**2) ** 0.5)
     fs = int(diagonal * wm.font_ratio)
-    print(f"[watermark] font_size: {w}x{h}  "
-          f"diag*{wm.font_ratio} = {diagonal}*{wm.font_ratio} = {fs}px")
+    log.info("watermark", f"font_size: {w}x{h}  "
+             f"diag*{wm.font_ratio} = {diagonal}*{wm.font_ratio} = {fs}px")
     return fs
 
 

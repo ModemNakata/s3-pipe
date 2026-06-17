@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
+import log
 from config import AppConfig
 
 
 def upload_dir(cfg: AppConfig, local_dir: Path, s3_dest: str) -> None:
     src = f"{local_dir}/"
-    print(f"[upload] mc cp --recursive {src} -> {s3_dest}")
-    proc = subprocess.run(
+    log.info("upload", f"mc cp --recursive {src} -> {s3_dest}")
+    proc = log.run_cmd(
         ["mc", "cp", "--recursive", src, s3_dest],
-        capture_output=True, text=True,
+        module="upload",
     )
     if proc.returncode != 0:
-        print(f"[upload] ERROR:\n{proc.stderr}")
+        log.info("upload", f"ERROR:\n{proc.stderr}")
         raise RuntimeError(f"mc upload failed for {local_dir}")
 
     total = sum(f.stat().st_size for f in local_dir.rglob("*") if f.is_file())
