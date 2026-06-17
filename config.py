@@ -212,10 +212,10 @@ class AppConfig:
             log_level=os.environ.get("LOG_LEVEL", env.get("LOG_LEVEL", "INFO")).upper(),
             profiles=profiles,
             preview_duration=int(env.get("PREVIEW_DURATION", "5")),
-            image_quality=int(env.get("WEBP_QUALITY", "100")),
-            image_lossless=(env.get("WEBP_LOSSLESS", "false").lower()
+            image_quality=int(env.get("AVIF_QUALITY", "82")),
+            image_lossless=(env.get("AVIF_LOSSLESS", "false").lower()
                             in ("true", "1", "yes")),
-            image_max_dimension=int(env.get("WEBP_MAX_DIMENSION", "0")),
+            image_max_dimension=int(env.get("AVIF_MAX_DIMENSION", "0")),
 
             blur_sigma=float(env.get("BLUR_SIGMA", "20")),
             blur_steps=int(env.get("BLUR_STEPS", "3")),

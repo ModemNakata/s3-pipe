@@ -90,14 +90,14 @@ def process_item(cfg: AppConfig, item: dict[str, Any]) -> bool:
             upload.upload_images(cfg, output_dir, content_id)
             s3_prefix = f"galleries/{content_id}"
             thumbnail_url = ""
-            preview_path = f"{s3_prefix}/preview.webp"
+            preview_path = f"{s3_prefix}/preview.avif"
             processed_files = [
-                f"galleries/{content_id}/{f['path'].split('/')[-1].rsplit('.', 1)[0]}.webp"
+                f"galleries/{content_id}/{f['path'].split('/')[-1].rsplit('.', 1)[0]}.avif"
                 for f in files
             ]
             if is_paywalled:
                 blurred_files = [
-                    f"galleries/{content_id}/blurred_{i}.webp" if i >= unblurred_count else ""
+                    f"galleries/{content_id}/blurred_{i}.avif" if i >= unblurred_count else ""
                     for i in range(len(files))
                 ]
 

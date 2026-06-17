@@ -101,21 +101,21 @@ def _generate_preview(input_path: Path, output_dir: Path,
     return out
 
 
-def _generate_blurred_webp(input_path: Path, output_path: Path,
+def _generate_blurred_avif(input_path: Path, output_path: Path,
                             sigma: float = 20, steps: int = 3) -> Optional[Path]:
-    log.info("processor", f"generating blurred webp from {input_path.name} "
+    log.info("processor", f"generating blurred avif from {input_path.name} "
              f"(sigma={sigma}, steps={steps})")
     cmd = [
         "ffmpeg", "-y", "-i", str(input_path),
         "-vf", f"gblur=sigma={sigma}:steps={steps}",
-        "-c:v", "libwebp", "-quality", "50",
+        "-c:v", "libsvtav1", "-crf", "40", "-pix_fmt", "yuv420p10le",
         str(output_path),
     ]
     proc = log.run_cmd(cmd, module="processor")
     if proc.returncode != 0:
-        log.info("processor", f"WARNING: blurred webp failed:\n{proc.stderr[-300:]}")
+        log.info("processor", f"WARNING: blurred avif failed:\n{proc.stderr[-300:]}")
         return None
-    log.info("processor", f"blurred webp: {output_path.name} ({output_path.stat().st_size / 1024:.1f} KB)")
+    log.info("processor", f"blurred avif: {output_path.name} ({output_path.stat().st_size / 1024:.1f} KB)")
     return output_path
 
 
@@ -253,13 +253,13 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
 
 
 def _generate_image_preview(input_path: Path, output_dir: Path) -> Optional[Path]:
-    out = output_dir / "preview.webp"
+    out = output_dir / "preview.avif"
     log.info("processor", f"generating image preview square from {input_path.name}")
     cmd = [
         "ffmpeg", "-y", "-i", str(input_path),
         "-vf", "crop='min(iw,ih)':'min(iw,ih)',"
                "scale='min(720,iw)':'min(720,ih)'",
-        "-c:v", "libwebp", "-quality", "100",
+        "-c:v", "libsvtav1", "-crf", "30", "-pix_fmt", "yuv420p10le",
         str(out),
     ]
     proc = log.run_cmd(cmd, module="processor")
@@ -274,8 +274,8 @@ def process_images(cfg: AppConfig, download_dir: Path, content_id: str,
                    workdir: Path, first_image: Optional[Path] = None,
                    files: Optional[list[dict]] = None,
                    unblurred_count: int = 0) -> Path:
-    output_dir = workdir / content_id / "webp_output"
-    print(f"[processor] ── WebP pipeline for {content_id} ──")
+    output_dir = workdir / content_id / "avif_output"
+    print(f"[processor] ── AVIF pipeline for {content_id} ──")
     print(f"[processor] input:  {download_dir}")
     print(f"[processor] output: {output_dir}")
 
@@ -297,9 +297,9 @@ def process_images(cfg: AppConfig, download_dir: Path, content_id: str,
             if i >= unblurred_count:
                 local_src = download_dir / f["path"].split("/")[-1]
                 if local_src.exists():
-                    blurred_name = f"blurred_{i}.webp"
-                    _generate_blurred_webp(local_src, output_dir / blurred_name,
+                    blurred_name = f"blurred_{i}.avif"
+                    _generate_blurred_avif(local_src, output_dir / blurred_name,
                                            sigma=cfg.blur_sigma, steps=cfg.blur_steps)
 
-    print(f"[processor] WebP pipeline complete for {content_id}")
+    print(f"[processor] AVIF pipeline complete for {content_id}")
     return output_dir

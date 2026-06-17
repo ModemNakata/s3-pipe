@@ -79,7 +79,7 @@ def run(cfg: ImageConfig) -> int:
             continue
 
         stem = src_path.stem
-        out_name = f"{stem}.webp"
+        out_name = f"{stem}.avif"
         out_path = os.path.join(cfg.output_dir, out_name)
         in_bytes = src_path.stat().st_size
 
@@ -95,10 +95,11 @@ def run(cfg: ImageConfig) -> int:
             cmd += ["-vf", filter_string]
 
         if cfg.lossless:
-            cmd += ["-lossless", "1"]
+            crf = 0
         else:
-            cmd += ["-quality", str(cfg.quality)]
-        cmd += ["-c:v", "libwebp", out_path]
+            # Map quality 0-100 to CRF 63-18 (lower CRF = better quality)
+            crf = max(0, 63 - int(cfg.quality * 0.45))
+        cmd += ["-c:v", "libsvtav1", "-crf", str(crf), "-pix_fmt", "yuv420p10le", out_path]
 
         proc = log.run_cmd(cmd, module="process")
         if proc.returncode != 0:

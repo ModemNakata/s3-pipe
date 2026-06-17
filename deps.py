@@ -37,8 +37,8 @@ def check_image(cfg: ImageConfig) -> None:
         sys.exit(1)
 
     r = log.run_cmd(["ffmpeg", "-encoders"], module="deps")
-    if "libwebp" not in r.stdout and "libwebp_anim" not in r.stdout:
-        log.info("deps", "ERROR: libwebp encoder not available in ffmpeg")
+    if "libsvtav1" not in r.stdout:
+        log.info("deps", "ERROR: libsvtav1 encoder not available in ffmpeg")
         sys.exit(1)
 
     log.info("deps", "image dependencies satisfied")
