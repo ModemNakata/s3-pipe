@@ -69,7 +69,7 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
 
     wm_label = " +wm" if cfg.watermark.enabled else ""
     log.info("transcode", f"{profile.name} ({actual_res})  "
-             f"crf={cfg.crf}{rate_label}"
+             f"crf={profile.crf}{rate_label}"
              f"{'  (passthrough)' if profile.passthrough else ''}{wm_label}")
 
     playlist = os.path.join(cfg.output_dir, f"{profile.name}.m3u8")
@@ -79,7 +79,7 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     if filter_parts:
         cmd += ["-vf", ",".join(filter_parts)]
     cmd += ["-c:v", cfg.video_codec]
-    cmd += ["-crf", str(cfg.crf)]
+    cmd += ["-crf", str(profile.crf)]
     if rate_control_active:
         cmd += ["-maxrate", f"{actual_maxrate}k"]
         cmd += ["-bufsize", f"{actual_bufsize}k"]
@@ -89,7 +89,12 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     if cfg.video_codec_tag:
         cmd += ["-vtag", cfg.video_codec_tag]
     if cfg.codec_params:
-        param_flag = "-x265-params" if cfg.video_codec == "libx265" else "-x264-params"
+        if cfg.video_codec == "libsvtav1":
+            param_flag = "-svtav1-params"
+        elif cfg.video_codec == "libx265":
+            param_flag = "-x265-params"
+        else:
+            param_flag = "-x264-params"
         cmd += [param_flag, cfg.codec_params]
 
     cmd += ["-g", str(cfg.hls.keyframe_interval)]

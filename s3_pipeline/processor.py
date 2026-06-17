@@ -144,8 +144,8 @@ def _source_quality(min_dim: int, fps: float) -> str:
 
 def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Path,
                   free_preview_duration: int = 0) -> tuple[Path, float, Optional[Path], str]:
-    output_dir = workdir / content_id / "h264_output"
-    print(f"[processor] ── H264 pipeline for {content_id} ──")
+    output_dir = workdir / content_id / "av1_output"
+    print(f"[processor] ── AV1 pipeline for {content_id} ──")
     print(f"[processor] input:  {input_path}")
     print(f"[processor] output: {output_dir}")
 
@@ -207,10 +207,10 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
 
     free_preview_output_dir: Optional[Path] = None
     if free_preview_duration > 0:
-        print(f"[processor] ── free preview HLS (paywalled) ──")
+        print(f"[processor] ── free preview (paywalled) ──")
         trimmed = workdir / content_id / "free_preview_trimmed.mp4"
         if _trim_video(input_path, trimmed, free_preview_duration):
-            free_preview_output_dir = workdir / content_id / "h264_free_preview"
+            free_preview_output_dir = workdir / content_id / "av1_free_preview"
             fp_vcfg = cfg.build_video_config(str(trimmed), str(free_preview_output_dir))
             fp_meta = probe.probe(fp_vcfg)
             free_preview_output_dir.mkdir(parents=True, exist_ok=True)
@@ -248,7 +248,7 @@ def process_video(cfg: AppConfig, input_path: Path, content_id: str, workdir: Pa
 
     sq = _source_quality(meta.min_dim, meta.fps)
     print(f"[processor] source quality: {sq}")
-    print(f"[processor] H264 pipeline complete for {content_id}")
+    print(f"[processor] AV1 pipeline complete for {content_id}")
     return output_dir, meta.duration_s, free_preview_output_dir, sq
 
 

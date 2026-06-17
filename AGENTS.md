@@ -4,7 +4,7 @@
 
 A media processing pipeline that downloads source files from S3 (MinIO), transcodes them, and uploads results back to S3 with an API status callback. Supports two content types:
 
-- **Video**: HLS (fMP4 segments) via ffmpeg + libx264, with multi-profile ABR ladder
+- **Video**: HLS (fMP4 segments) via ffmpeg + libsvtav1 (AV1), with multi-profile ABR ladder
 - **Image set**: WebP via ffmpeg's libwebp encoder
 
 Used by a parent platform at `fevid.cloud` — the API at `PIPELINE_API_URL` serves pending items and receives status updates.
@@ -50,7 +50,7 @@ There are **no Python dependencies** beyond stdlib. External tools required: `ff
 │   └── __init__.py               # empty
 ├── video-pipeline/pipeline/      # Video sub-pipeline (importlib-loaded at runtime)
 │   ├── probe.py                  # ffprobe → VideoMeta dataclass
-│   ├── transcode.py              # ffmpeg → HLS segments per profile
+│   ├── transcode.py              # ffmpeg → HLS segments per profile (AV1/SVT-AV1)
 │   └── manifest.py               # Generate master.m3u8
 ├── image-pipeline/pipeline/      # Image sub-pipeline (importlib-loaded at runtime)
 │   └── process.py                # ffmpeg → WebP per source image
@@ -94,7 +94,7 @@ All config is via `.env` file (loaded in `AppConfig.from_env()`). Environment va
 
 Key config groups:
 - **S3**: endpoint, credentials, region, buckets (origin + destination)
-- **Video**: codec, CRF (default 18), preset, pixel format, HLS params
+- **Video**: codec (default libsvtav1), per-profile CRF, preset (6), pixel format (yuv420p10le), HLS params
 - **Profiles**: ABR ladder (1440p/1080p/720p/480p) with hardcoded bandwidth/ref_width/threshold/maxrate_kbps/bufsize_kbps per profile. Rate control toggle + optional override values.
 - **Image**: WebP quality, lossless, max dimension constraint
 - **Watermark**: drawtext filter params, diagonal-responsive font sizing, optional font file

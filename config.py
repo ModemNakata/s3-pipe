@@ -41,6 +41,7 @@ class Profile:
     threshold: int
     maxrate_kbps: int
     bufsize_kbps: int
+    crf: int = 30
     passthrough: bool = False
 
 
@@ -56,22 +57,21 @@ class HlsConfig:
 class VideoConfig:
     input_video: str = ""
     output_dir: str = ""
-    video_codec: str = "libx264"
-    video_codec_tag: Optional[str] = "avc1"
-    codec_params: Optional[str] = "keyint=60:min-keyint=60:scenecut=0"
-    preset: str = "slow"
-    crf: int = 18
-    pixel_format: str = "yuv420p"
+    video_codec: str = "libsvtav1"
+    video_codec_tag: Optional[str] = None
+    codec_params: Optional[str] = "keyint=60:scd=0"
+    preset: str = "6"
+    pixel_format: str = "yuv420p10le"
     hls: HlsConfig = field(default_factory=HlsConfig)
     profiles: List[Profile] = field(default_factory=lambda: [
-        # 1440p (2K)  — 2560x1440  — maxrate=14000k  bufsize=28000k  — high-end desktop / premium web
-        Profile("1440p", 12000000, 2560, 1440, 14000, 28000),
-        # 1080p (FHD)  — 1920x1080  — maxrate=8000k   bufsize=16000k  — standard premium tier
-        Profile("1080p", 6000000, 1920, 1080, 8000, 16000),
-        # 720p  (HD)   — 1280x720   — maxrate=4500k   bufsize=9000k   — high-quality mobile fallback
-        Profile("720p",  3000000, 1280, 720,  4500, 9000),
-        # 480p  (SD)   — 854x480    — maxrate=2000k   bufsize=4000k   — low-bandwidth / congested
-        Profile("480p",  1200000, 854,  480,  2000, 4000),
+        # 1440p (2K)  — 2560x1440  — crf=28  maxrate=4500k  bufsize=9000k   — premium high-density desktop quality
+        Profile("1440p", 5000000, 2560, 1440, 4500, 9000, crf=28),
+        # 1080p (FHD)  — 1920x1080  — crf=30  maxrate=2500k  bufsize=5000k   — low-bitrate web sweet spot
+        Profile("1080p", 3500000, 1920, 1080, 2500, 5000, crf=30),
+        # 720p  (HD)   — 1280x720   — crf=32  maxrate=1500k  bufsize=3000k   — mobile/cellular fallback
+        Profile("720p",  2000000, 1280, 720,  1500, 3000, crf=32),
+        # 480p  (SD)   — 854x480    — crf=34  maxrate=800k   bufsize=1600k   — emergency slow-connection tier
+        Profile("480p",  1000000, 854,  480,  800,  1600, crf=34),
     ])
     watermark: WatermarkConfig = field(default_factory=WatermarkConfig)
     rate_control_enabled: bool = True
@@ -116,12 +116,11 @@ class AppConfig:
     mc_alias: str = "fevid"
 
     # Video defaults
-    video_codec: str = "libx264"
-    video_codec_tag: Optional[str] = "avc1"
-    video_codec_params: Optional[str] = "keyint=60:min-keyint=60:scenecut=0"
-    video_preset: str = "slow"
-    video_crf: int = 18
-    video_pix_fmt: str = "yuv420p"
+    video_codec: str = "libsvtav1"
+    video_codec_tag: Optional[str] = None
+    video_codec_params: Optional[str] = "keyint=60:scd=0"
+    video_preset: str = "6"
+    video_pix_fmt: str = "yuv420p10le"
 
     hls_segment_duration: int = 4
     hls_segment_type: str = "fmp4"
@@ -207,12 +206,11 @@ class AppConfig:
             work_dir=Path(os.environ.get(
                 "PIPELINE_WORK_DIR", env.get("PIPELINE_WORK_DIR", "/tmp/pipeline-work"),
             )),
-            video_codec=env.get("VIDEO_CODEC", "libx264"),
+            video_codec=env.get("VIDEO_CODEC", "libsvtav1"),
             video_codec_tag=env.get("VIDEO_CODEC_TAG") or None,
             video_codec_params=env.get("VIDEO_CODEC_PARAMS") or None,
-            video_preset=env.get("VIDEO_PRESET", "slow"),
-            video_crf=int(env.get("VIDEO_CRF", "18")),
-            video_pix_fmt=env.get("VIDEO_PIX_FMT", "yuv420p"),
+            video_preset=env.get("VIDEO_PRESET", "6"),
+            video_pix_fmt=env.get("VIDEO_PIX_FMT", "yuv420p10le"),
             rate_control_enabled=(env.get("RATE_CONTROL_ENABLED", "true").lower()
                                   not in ("false", "0", "no")),
             rate_control_maxrate=int(env["RATE_CONTROL_MAXRATE"]) if "RATE_CONTROL_MAXRATE" in env else None,
@@ -248,14 +246,14 @@ class AppConfig:
     def _load_profiles(raw: str) -> List[Profile]:
         if not raw:
             return [
-                # 1440p (2K)  — 2560x1440  — crf=18  maxrate=14000k  bufsize=28000k  — high-end desktop / premium web
-                Profile("1440p", 12000000, 2560, 1440, 14000, 28000),
-                # 1080p (FHD)  — 1920x1080  — crf=18  maxrate=8000k   bufsize=16000k  — standard premium tier
-                Profile("1080p", 6000000, 1920, 1080, 8000, 16000),
-                # 720p  (HD)   — 1280x720   — crf=18  maxrate=4500k   bufsize=9000k   — high-quality mobile fallback
-                Profile("720p",  3000000, 1280, 720,  4500, 9000),
-                # 480p  (SD)   — 854x480    — crf=18  maxrate=2000k   bufsize=4000k   — low-bandwidth / congested
-                Profile("480p",  1200000, 854,  480,  2000, 4000),
+                # 1440p (2K)  — 2560x1440  — crf=28  maxrate=4500k  bufsize=9000k   — premium high-density desktop quality
+                Profile("1440p", 5000000, 2560, 1440, 4500, 9000, crf=28),
+                # 1080p (FHD)  — 1920x1080  — crf=30  maxrate=2500k  bufsize=5000k   — low-bitrate web sweet spot
+                Profile("1080p", 3500000, 1920, 1080, 2500, 5000, crf=30),
+                # 720p  (HD)   — 1280x720   — crf=32  maxrate=1500k  bufsize=3000k   — mobile/cellular fallback
+                Profile("720p",  2000000, 1280, 720,  1500, 3000, crf=32),
+                # 480p  (SD)   — 854x480    — crf=34  maxrate=800k   bufsize=1600k   — emergency slow-connection tier
+                Profile("480p",  1000000, 854,  480,  800,  1600, crf=34),
             ]
         try:
             data = json.loads(raw)
@@ -272,7 +270,6 @@ class AppConfig:
             video_codec_tag=self.video_codec_tag,
             codec_params=self.video_codec_params,
             preset=self.video_preset,
-            crf=self.video_crf,
 
             pixel_format=self.video_pix_fmt,
             rate_control_enabled=self.rate_control_enabled,
