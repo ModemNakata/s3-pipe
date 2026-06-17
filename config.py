@@ -50,7 +50,6 @@ class HlsConfig:
     segment_duration: int = 4
     segment_type: str = "fmp4"
     playlist_type: str = "vod"
-    keyframe_interval: int = 60
 
 
 @dataclass
@@ -122,7 +121,6 @@ class AppConfig:
     hls_segment_duration: int = 4
     hls_segment_type: str = "fmp4"
     hls_playlist_type: str = "vod"
-    hls_keyframe_interval: int = 60
 
     profiles: List[Profile] = field(default_factory=list)
 
@@ -211,7 +209,6 @@ class AppConfig:
             hls_segment_duration=int(env.get("HLS_SEGMENT_DURATION", "4")),
             hls_segment_type=env.get("HLS_SEGMENT_TYPE", "fmp4"),
             hls_playlist_type=env.get("HLS_PLAYLIST_TYPE", "vod"),
-            hls_keyframe_interval=int(env.get("HLS_KEYFRAME_INTERVAL", "60")),
             log_level=os.environ.get("LOG_LEVEL", env.get("LOG_LEVEL", "INFO")).upper(),
             profiles=profiles,
             preview_duration=int(env.get("PREVIEW_DURATION", "5")),
@@ -270,7 +267,6 @@ class AppConfig:
                 segment_duration=self.hls_segment_duration,
                 segment_type=self.hls_segment_type,
                 playlist_type=self.hls_playlist_type,
-                keyframe_interval=self.hls_keyframe_interval,
             ),
             profiles=list(self.profiles),
             watermark=WatermarkConfig(

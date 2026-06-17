@@ -85,6 +85,7 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
         cmd += ["-bufsize", f"{actual_bufsize}k"]
     cmd += ["-preset", cfg.preset]
     cmd += ["-pix_fmt", cfg.pixel_format]
+    cmd += ["-fps_mode", "cfr"]
 
     if cfg.codec_params:
         if cfg.video_codec == "libsvtav1":
