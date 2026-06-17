@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 import log
-from config import VideoConfig, Profile, calc_maxrate, calc_bufsize, build_scale, calc_font_size
+from config import VideoConfig, Profile, build_scale, calc_font_size
 from pipeline.probe import VideoMeta
 
 
@@ -31,9 +31,8 @@ def _write_textfile(text: str) -> str:
 
 
 def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
-    source_kbps = meta.bitrate_bps // 1000
-    maxrate = calc_maxrate(profile.ceiling_kbps, source_kbps, cfg.cap_scale)
-    bufsize = calc_bufsize(maxrate, cfg.buf_factor)
+    maxrate = profile.maxrate_kbps
+    bufsize = profile.bufsize_kbps
     scale_filter, actual_res = build_scale(profile, meta.width, meta.height)
 
     watermark_text = None
@@ -62,7 +61,8 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
     actual_maxrate = cfg.rate_control_maxrate or maxrate
     actual_bufsize = cfg.rate_control_bufsize or bufsize
     rate_label = ""
-    if cfg.rate_control_enabled:
+    rate_control_active = cfg.rate_control_enabled and maxrate > 0
+    if rate_control_active:
         rate_label = f"  maxrate={actual_maxrate}k  bufsize={actual_bufsize}k"
     else:
         rate_label = "  (no rate control)"
@@ -80,7 +80,7 @@ def run(cfg: VideoConfig, profile: Profile, meta: VideoMeta) -> str:
         cmd += ["-vf", ",".join(filter_parts)]
     cmd += ["-c:v", cfg.video_codec]
     cmd += ["-crf", str(cfg.crf)]
-    if cfg.rate_control_enabled:
+    if rate_control_active:
         cmd += ["-maxrate", f"{actual_maxrate}k"]
         cmd += ["-bufsize", f"{actual_bufsize}k"]
     cmd += ["-preset", cfg.preset]

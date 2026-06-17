@@ -39,7 +39,8 @@ class Profile:
     bandwidth: int
     ref_width: int
     threshold: int
-    ceiling_kbps: int
+    maxrate_kbps: int
+    bufsize_kbps: int
     passthrough: bool = False
 
 
@@ -59,16 +60,18 @@ class VideoConfig:
     video_codec_tag: Optional[str] = "avc1"
     codec_params: Optional[str] = "keyint=60:min-keyint=60:scenecut=0"
     preset: str = "slow"
-    crf: int = 23
-    cap_scale: float = 0.9
-    buf_factor: float = 2
+    crf: int = 18
     pixel_format: str = "yuv420p"
     hls: HlsConfig = field(default_factory=HlsConfig)
     profiles: List[Profile] = field(default_factory=lambda: [
-        Profile("1440p", 12000000, 2560, 1440, 12000),
-        Profile("1080p", 6000000, 1920, 1080, 6000),
-        Profile("720p",  3000000, 1280, 720,  3000),
-        Profile("480p",  1200000, 854,  480,  1200),
+        # 1440p (2K)  — 2560x1440  — maxrate=14000k  bufsize=28000k  — high-end desktop / premium web
+        Profile("1440p", 12000000, 2560, 1440, 14000, 28000),
+        # 1080p (FHD)  — 1920x1080  — maxrate=8000k   bufsize=16000k  — standard premium tier
+        Profile("1080p", 6000000, 1920, 1080, 8000, 16000),
+        # 720p  (HD)   — 1280x720   — maxrate=4500k   bufsize=9000k   — high-quality mobile fallback
+        Profile("720p",  3000000, 1280, 720,  4500, 9000),
+        # 480p  (SD)   — 854x480    — maxrate=2000k   bufsize=4000k   — low-bandwidth / congested
+        Profile("480p",  1200000, 854,  480,  2000, 4000),
     ])
     watermark: WatermarkConfig = field(default_factory=WatermarkConfig)
     rate_control_enabled: bool = True
@@ -94,16 +97,7 @@ class ImageConfig:
 # App / S3 settings
 # ═══════════════════════════════════════════════════════════════════════
 
-_DEFAULT_PROFILES_JSON = json.dumps([
-    {"name": "1440p", "bandwidth": 12000000, "ref_width": 2560,
-     "threshold": 1440, "ceiling_kbps": 12000},
-    {"name": "1080p", "bandwidth": 6000000, "ref_width": 1920,
-     "threshold": 1080, "ceiling_kbps": 6000},
-    {"name": "720p",  "bandwidth": 3000000, "ref_width": 1280,
-     "threshold": 720,  "ceiling_kbps": 3000},
-    {"name": "480p",  "bandwidth": 1200000, "ref_width": 854,
-     "threshold": 480,  "ceiling_kbps": 1200},
-])
+
 
 
 @dataclass
@@ -126,9 +120,7 @@ class AppConfig:
     video_codec_tag: Optional[str] = "avc1"
     video_codec_params: Optional[str] = "keyint=60:min-keyint=60:scenecut=0"
     video_preset: str = "slow"
-    video_crf: int = 23
-    video_cap_scale: float = 0.9
-    video_buf_factor: float = 2
+    video_crf: int = 18
     video_pix_fmt: str = "yuv420p"
 
     hls_segment_duration: int = 4
@@ -219,9 +211,7 @@ class AppConfig:
             video_codec_tag=env.get("VIDEO_CODEC_TAG") or None,
             video_codec_params=env.get("VIDEO_CODEC_PARAMS") or None,
             video_preset=env.get("VIDEO_PRESET", "slow"),
-            video_crf=int(env.get("VIDEO_CRF", "23")),
-            video_cap_scale=float(env.get("VIDEO_CAP_SCALE", "0.9")),
-            video_buf_factor=float(env.get("VIDEO_BUF_FACTOR", "2")),
+            video_crf=int(env.get("VIDEO_CRF", "18")),
             video_pix_fmt=env.get("VIDEO_PIX_FMT", "yuv420p"),
             rate_control_enabled=(env.get("RATE_CONTROL_ENABLED", "true").lower()
                                   not in ("false", "0", "no")),
@@ -258,10 +248,14 @@ class AppConfig:
     def _load_profiles(raw: str) -> List[Profile]:
         if not raw:
             return [
-                Profile("1440p", 12000000, 2560, 1440, 12000),
-                Profile("1080p", 6000000, 1920, 1080, 6000),
-                Profile("720p",  3000000, 1280, 720,  3000),
-                Profile("480p",  1200000, 854,  480,  1200),
+                # 1440p (2K)  — 2560x1440  — crf=18  maxrate=14000k  bufsize=28000k  — high-end desktop / premium web
+                Profile("1440p", 12000000, 2560, 1440, 14000, 28000),
+                # 1080p (FHD)  — 1920x1080  — crf=18  maxrate=8000k   bufsize=16000k  — standard premium tier
+                Profile("1080p", 6000000, 1920, 1080, 8000, 16000),
+                # 720p  (HD)   — 1280x720   — crf=18  maxrate=4500k   bufsize=9000k   — high-quality mobile fallback
+                Profile("720p",  3000000, 1280, 720,  4500, 9000),
+                # 480p  (SD)   — 854x480    — crf=18  maxrate=2000k   bufsize=4000k   — low-bandwidth / congested
+                Profile("480p",  1200000, 854,  480,  2000, 4000),
             ]
         try:
             data = json.loads(raw)
@@ -279,8 +273,7 @@ class AppConfig:
             codec_params=self.video_codec_params,
             preset=self.video_preset,
             crf=self.video_crf,
-            cap_scale=self.video_cap_scale,
-            buf_factor=self.video_buf_factor,
+
             pixel_format=self.video_pix_fmt,
             rate_control_enabled=self.rate_control_enabled,
             rate_control_maxrate=self.rate_control_maxrate,
@@ -368,14 +361,6 @@ def calc_font_size(w: int, h: int, wm: WatermarkConfig) -> int:
 
 def filter_profiles(profiles: List[Profile], source_min_dim: int) -> List[Profile]:
     return [p for p in profiles if source_min_dim >= p.threshold]
-
-
-def calc_maxrate(ceiling_kbps: int, source_kbps: int, cap_scale: float) -> int:
-    return min(ceiling_kbps, int(source_kbps * cap_scale))
-
-
-def calc_bufsize(maxrate_kbps: int, buf_factor: float) -> int:
-    return int(maxrate_kbps * buf_factor)
 
 
 def build_scale(profile: Profile, src_w: int, src_h: int) -> Tuple[Optional[str], str]:
